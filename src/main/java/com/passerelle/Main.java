@@ -1,6 +1,8 @@
 package com.passerelle;
 import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.Context;
+import java.io.File;
+import com.passerelle.controller.FrontControllerServlet;
 
 public class Main {
     public static void main(String[] args) {
@@ -9,7 +11,7 @@ public class Main {
         tomcat.getConnector();
 
         String docBase = new File(".").getAbsolutePath();
-        Context context = tomcat.addContext("", docBase);
+        Context ctx = tomcat.addContext("", docBase);
 
         Tomcat.addServlet(ctx, "frontController", new FrontControllerServlet());
         ctx.addServletMappingDecoded("/*", "frontController");
