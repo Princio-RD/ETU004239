@@ -9,3 +9,4 @@ artifactId: ETU004239
 version: 1.0-SNAPSHOT
 package: com.passerelle
 
+java -jar target/ETU004239-1.0-SNAPSHOT.jar
