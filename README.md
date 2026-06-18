@@ -3,6 +3,11 @@ Projet Mr Naina Sprint0 2026
 
 
 # creation du projet avec maven:
+directe :
+mvn archetype:generate "-DgroupId=com.passerelle" "-DartifactId=MonProjetFramework" "-DarchetypeArtifactId=maven-archetype-quickstart" "-DinteractiveMode=false"
+
+manuelle :
+mvn archetype:generate "-DarchetypeArtifactId=maven-archetype-quickstart"
 mvn archetype:generate
 groupId: com.passerelle
 artifactId: ETU004239
