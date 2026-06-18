@@ -10,3 +10,11 @@ version: 1.0-SNAPSHOT
 package: com.passerelle
 
 java -jar target/ETU004239-1.0-SNAPSHOT.jar
+
+
+-changement de classe
+- demarrage de l'application web
+- premier appelle du servlet
+- contextlistener ou init (parcourir tout les classes dans le classepath de l'application web)
+- annotation controller (mg.ituxxx) alefa any anatiny .jar
+- verifier chaque annotation controller
