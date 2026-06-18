@@ -14,7 +14,9 @@ artifactId: ETU004239
 version: 1.0-SNAPSHOT
 package: com.passerelle
 
-java -jar target/ETU004239-1.0-SNAPSHOT.jar
+autre cas:java -jar target/ETU004239-1.0-SNAPSHOT.jar
+
+installation du jar : mvn install:install-file "-Dfile=P:\Github\ETU004239\target\ETU004239.jar" "-DgroupId=com.passerelle" "-DartifactId=ETU004239" "-Dversion=1.0-SNAPSHOT" "-Dpackaging=jar"
 
 
 -changement de classe

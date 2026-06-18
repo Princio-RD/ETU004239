@@ -15,7 +15,7 @@
     <property name="sun.java.launcher" value="SUN_STANDARD"/>
     <property name="user.country" value="FR"/>
     <property name="sun.boot.library.path" value="C:\Program Files\Eclipse Adoptium\jdk-21.0.6.7-hotspot\bin"/>
-    <property name="sun.java.command" value="C:\Users\Princio_RD\AppData\Local\Temp\surefire4517867914868812227\surefirebooter-20260618211425602_3.jar C:\Users\Princio_RD\AppData\Local\Temp\surefire4517867914868812227 2026-06-18T21-14-25_345-jvmRun1 surefire-20260618211425602_1tmp surefire_0-20260618211425602_2tmp"/>
+    <property name="sun.java.command" value="C:\Users\Princio_RD\AppData\Local\Temp\surefire7879879504236105506\surefirebooter-20260618224129466_3.jar C:\Users\Princio_RD\AppData\Local\Temp\surefire7879879504236105506 2026-06-18T22-41-29_268-jvmRun1 surefire-20260618224129466_1tmp surefire_0-20260618224129466_2tmp"/>
     <property name="jdk.debug" value="release"/>
     <property name="surefire.test.class.path" value="P:\Github\ETU004239\target\test-classes;P:\Github\ETU004239\target\classes;C:\Users\Princio_RD\.m2\repository\jakarta\servlet\jakarta.servlet-api\6.0.0\jakarta.servlet-api-6.0.0.jar;C:\Users\Princio_RD\.m2\repository\junit\junit\4.13.2\junit-4.13.2.jar;C:\Users\Princio_RD\.m2\repository\org\hamcrest\hamcrest-core\1.3\hamcrest-core-1.3.jar;"/>
     <property name="sun.cpu.endian" value="little"/>
@@ -30,7 +30,7 @@
     <property name="line.separator" value="&#10;"/>
     <property name="java.vm.specification.vendor" value="Oracle Corporation"/>
     <property name="java.specification.name" value="Java Platform API Specification"/>
-    <property name="surefire.real.class.path" value="C:\Users\Princio_RD\AppData\Local\Temp\surefire4517867914868812227\surefirebooter-20260618211425602_3.jar"/>
+    <property name="surefire.real.class.path" value="C:\Users\Princio_RD\AppData\Local\Temp\surefire7879879504236105506\surefirebooter-20260618224129466_3.jar"/>
     <property name="user.script" value=""/>
     <property name="sun.management.compiler" value="HotSpot 64-Bit Tiered Compilers"/>
     <property name="java.runtime.version" value="21.0.6+7-LTS"/>
