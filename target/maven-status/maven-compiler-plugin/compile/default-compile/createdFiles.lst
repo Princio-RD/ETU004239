@@ -1,3 +1,3 @@
-com\passerelle\App.class
+com\passerelle\listener\FrameworkListener.class
 com\passerelle\controller\FrontControllerServlet.class
-com\passerelle\Main.class
+com\passerelle\annotation\Controller.class
