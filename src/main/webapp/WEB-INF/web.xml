@@ -8,7 +8,7 @@
     <!--Parametre pour definier le package a scanner-->
     <context-param>
         <param-name>packageToScan</param-name>
-        <param-value>mg.itu.4239</param-value>
+        <param-value>mg.itu.p4239.annotation.controller</param-value>
     </context-param>
 
     <!-- Le Listener qui scanne au démarrage -->

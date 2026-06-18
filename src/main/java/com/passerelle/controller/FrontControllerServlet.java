@@ -23,7 +23,7 @@ public class FrontControllerServlet extends HttpServlet {
 
     protected void processRequest(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         response.setContentType("text/plain;charset=UTF-8");
-        List<String> listeContro = (List<String>) getServletContext().getAttribute("listeContro");
+        List<String> listeContro = (List<String>) getServletContext().getAttribute("listeControllers");
 
         try (PrintWriter out = response.getWriter()) {
             if (listeContro != null) {
