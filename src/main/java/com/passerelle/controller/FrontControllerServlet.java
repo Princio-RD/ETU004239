@@ -47,7 +47,6 @@ public class FrontControllerServlet extends HttpServlet {
     }
 
     private void sprint1(PrintWriter out) {
-        out.println("404 - Route introuvable\n");
         
         @SuppressWarnings("unchecked")
         List<String> listeContro = (List<String>) getServletContext().getAttribute("listeContro");
