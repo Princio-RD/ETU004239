@@ -1,18 +1,18 @@
 package com.passerelle.listener;
 
 import java.io.File;
-import java.lang.reflect.Method;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.List;
+import java.lang.reflect.Method;
+import java.util.*;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
 import com.passerelle.annotation.Controller;
+import com.passerelle.annotation.GetMapping;
+import com.passerelle.annotation.PostMapping;
 import com.passerelle.annotation.Url;
 import com.passerelle.core.Mapping;
+import com.passerelle.core.Route;
 
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletContextEvent;
@@ -26,11 +26,13 @@ public class FrameworkListener implements ServletContextListener {
         String packageToScan = ctx.getInitParameter("packageToScan");
         
         List<String> listeControllers = new ArrayList<>();
-        HashMap<String, Mapping> urlMappings = new HashMap<>();
+        HashMap<String, Mapping> urlMappingsOld = new HashMap<>(); // Sprint 1 & 2
+        HashMap<Route, Mapping> urlMappings = new HashMap<>(); // Sprint 3
 
         // Si aucun package n'est configuré, on s'arrête proprement
         if (packageToScan == null || packageToScan.isEmpty()) {
             ctx.setAttribute("listeContro", listeControllers);
+            ctx.setAttribute("urlMappingsOld", urlMappingsOld);
             ctx.setAttribute("urlMappings", urlMappings);
             return;
         }
@@ -46,10 +48,7 @@ public class FrameworkListener implements ServletContextListener {
                 if ("file".equals(resource.getProtocol())) {
                     File directory = new File(resource.toURI());
                     if (directory.exists() && directory.isDirectory()) {
-                        for (File file : directory.listFiles(f -> f.getName().endsWith(".class"))) {
-                            String className = packageToScan + "." + file.getName().replace(".class", "");
-                            scanClassAndMethods(className, listeControllers, urlMappings);
-                        }
+                        scanDirectory(directory, packageToScan, listeControllers, urlMappingsOld, urlMappings);
                     }
                 } 
                 // CAS 2 : Mode Production (Fichier JAR)
@@ -63,7 +62,7 @@ public class FrameworkListener implements ServletContextListener {
                             
                             if (name.startsWith(path) && name.endsWith(".class") && !entry.isDirectory()) {
                                 String className = name.replace("/", ".").replace(".class", "");
-                                scanClassAndMethods(className, listeControllers, urlMappings);
+                                scanClassAndMethods(className, listeControllers, urlMappingsOld, urlMappings);
                             }
                         }
                     }
@@ -73,33 +72,67 @@ public class FrameworkListener implements ServletContextListener {
             ctx.log("[FRAMEWORK] Erreur lors du scan global", e);
         }
 
-        // Sauvegarde des deux Sprints dans le ServletContext
+        // Sauvegarde dans le ServletContext
         ctx.setAttribute("listeContro", listeControllers);
+        ctx.setAttribute("urlMappingsOld", urlMappingsOld);
         ctx.setAttribute("urlMappings", urlMappings);
         
-        System.out.println("[FRAMEWORK] Scan terminé : " + listeControllers.size() + " contrôleur(s), " + urlMappings.size() + " URL(s) chargée(s).");
+        System.out.println("[FRAMEWORK] Scan terminé : " + listeControllers.size() + " contrôleur(s)");
+        System.out.println("[FRAMEWORK] Routes Sprint 2 (@Url) : " + urlMappingsOld.size());
+        System.out.println("[FRAMEWORK] Routes Sprint 3 (@GetMapping/@PostMapping) : " + urlMappings.size());
     }
 
-    /**
-     * Centralisation des Sprints 1 et 2 pour éviter la duplication de code.
-     */
-    private void scanClassAndMethods(String className, List<String> controllers, HashMap<String, Mapping> mappings) {
+    private void scanDirectory(File directory, String packageName, List<String> controllers, 
+                               HashMap<String, Mapping> urlMappingsOld, HashMap<Route, Mapping> urlMappings) {
+        File[] files = directory.listFiles();
+        if (files == null) return;
+        
+        for (File file : files) {
+            if (file.isDirectory()) {
+                scanDirectory(file, packageName + "." + file.getName(), controllers, urlMappingsOld, urlMappings);
+            } else if (file.getName().endsWith(".class")) {
+                String className = packageName + "." + file.getName().replace(".class", "");
+                scanClassAndMethods(className, controllers, urlMappingsOld, urlMappings);
+            }
+        }
+    }
+
+    private void scanClassAndMethods(String className, List<String> controllers, 
+                                     HashMap<String, Mapping> urlMappingsOld, 
+                                     HashMap<Route, Mapping> urlMappings) {
         try {
             Class<?> clazz = Class.forName(className);
             
             // Sprint 1 : Validation du contrôleur
             if (clazz.isAnnotationPresent(Controller.class)) {
                 controllers.add(className);
+                System.out.println("✅ Contrôleur détecté : " + className);
 
-                // Sprint 2 : Scan des méthodes de ce contrôleur
+                // Scan des méthodes de ce contrôleur
                 for (Method method : clazz.getDeclaredMethods()) {
+                    
+                    // Sprint 2 : Annotation @Url
                     if (method.isAnnotationPresent(Url.class)) {
                         Url urlAnnotation = method.getAnnotation(Url.class);
                         String urlValue = urlAnnotation.value();
-                        
-                        // Enregistrement de la route
-                        mappings.put(urlValue, new Mapping(className, method.getName()));
-                        System.out.println(" URL mappée : [" + urlValue + "] -> " + method.getName() + "()");
+                        urlMappingsOld.put(urlValue, new Mapping(className, method.getName()));
+                        System.out.println("  🔗 @Url : [" + urlValue + "] -> " + method.getName() + "()");
+                    }
+                    
+                    // Sprint 3 : Annotation @GetMapping
+                    if (method.isAnnotationPresent(GetMapping.class)) {
+                        GetMapping getMapping = method.getAnnotation(GetMapping.class);
+                        String urlValue = getMapping.value();
+                        urlMappings.put(new Route(urlValue, "GET"), new Mapping(className, method.getName()));
+                        System.out.println("  🔗 @GetMapping : [" + urlValue + "] GET -> " + method.getName() + "()");
+                    }
+                    
+                    // Sprint 3 : Annotation @PostMapping
+                    if (method.isAnnotationPresent(PostMapping.class)) {
+                        PostMapping postMapping = method.getAnnotation(PostMapping.class);
+                        String urlValue = postMapping.value();
+                        urlMappings.put(new Route(urlValue, "POST"), new Mapping(className, method.getName()));
+                        System.out.println("  🔗 @PostMapping : [" + urlValue + "] POST -> " + method.getName() + "()");
                     }
                 }
             }
