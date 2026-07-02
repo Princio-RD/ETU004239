@@ -106,7 +106,7 @@ public class FrameworkListener implements ServletContextListener {
             // Sprint 1 : Validation du contrôleur
             if (clazz.isAnnotationPresent(Controller.class)) {
                 controllers.add(className);
-                System.out.println("✅ Contrôleur détecté : " + className);
+                System.out.println(" Contrôleur détecté : " + className);
 
                 // Scan des méthodes de ce contrôleur
                 for (Method method : clazz.getDeclaredMethods()) {
