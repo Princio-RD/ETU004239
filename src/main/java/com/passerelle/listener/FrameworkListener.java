@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
@@ -32,11 +34,15 @@ public class FrameworkListener implements ServletContextListener {
         List<String> listeControllers = new ArrayList<>();
         HashMap<String, Mapping> urlMappingsOld = new HashMap<>();
         HashMap<Route, Mapping> urlMappings = new HashMap<>();
+        
+        // Map pour stocker les instances uniques des contrôleurs (Singleton)
+        Map<Class<?>, Object> controllerInstances = new ConcurrentHashMap<>();
 
         if (packageToScan == null || packageToScan.isEmpty()) {
             ctx.setAttribute("listeContro", listeControllers);
             ctx.setAttribute("urlMappingsOld", urlMappingsOld);
             ctx.setAttribute("urlMappings", urlMappings);
+            ctx.setAttribute("controllerInstances", controllerInstances);
             return;
         }
 
@@ -50,7 +56,8 @@ public class FrameworkListener implements ServletContextListener {
                 if ("file".equals(resource.getProtocol())) {
                     File directory = new File(resource.toURI());
                     if (directory.exists() && directory.isDirectory()) {
-                        scanDirectory(directory, packageToScan, listeControllers, urlMappingsOld, urlMappings);
+                        scanDirectory(directory, packageToScan, listeControllers, 
+                                    urlMappingsOld, urlMappings, controllerInstances);
                     }
                 } else if ("jar".equals(resource.getProtocol())) {
                     String jarPath = resource.getPath().substring(5, resource.getPath().indexOf("!"));
@@ -62,7 +69,7 @@ public class FrameworkListener implements ServletContextListener {
                             
                             if (name.startsWith(path) && name.endsWith(".class") && !entry.isDirectory()) {
                                 String className = name.replace("/", ".").replace(".class", "");
-                                scanClassAndMethods(className, listeControllers, urlMappingsOld, urlMappings);
+                                scanClassAndMethods(className, listeControllers, urlMappingsOld, urlMappings, controllerInstances);
                             }
                         }
                     }
@@ -72,40 +79,63 @@ public class FrameworkListener implements ServletContextListener {
             ctx.log("[FRAMEWORK] Erreur lors du scan global", e);
         }
 
+        // Stocker toutes les données dans le contexte de l'application
         ctx.setAttribute("listeContro", listeControllers);
         ctx.setAttribute("urlMappingsOld", urlMappingsOld);
         ctx.setAttribute("urlMappings", urlMappings);
+        ctx.setAttribute("controllerInstances", controllerInstances);
         
         System.out.println("[FRAMEWORK] Scan terminé : " + listeControllers.size() + " contrôleur(s)");
         System.out.println("[FRAMEWORK] Routes Sprint 2 (@Url) : " + urlMappingsOld.size());
         System.out.println("[FRAMEWORK] Routes Sprint 3 (@GetMapping/@PostMapping) : " + urlMappings.size());
+        System.out.println("[FRAMEWORK] Instances de contrôleurs créées : " + controllerInstances.size());
+        
+        // Afficher toutes les routes pour le debug
+        for (Route route : urlMappings.keySet()) {
+            System.out.println("  Route: [" + route.getMethod() + "] " + route.getUrl());
+        }
     }
 
     private void scanDirectory(File directory, String packageName, List<String> controllers, 
-                               HashMap<String, Mapping> urlMappingsOld, HashMap<Route, Mapping> urlMappings) {
+                               HashMap<String, Mapping> urlMappingsOld, 
+                               HashMap<Route, Mapping> urlMappings,
+                               Map<Class<?>, Object> controllerInstances) {
         File[] files = directory.listFiles();
         if (files == null) return;
         
         for (File file : files) {
             if (file.isDirectory()) {
-                scanDirectory(file, packageName + "." + file.getName(), controllers, urlMappingsOld, urlMappings);
+                scanDirectory(file, packageName + "." + file.getName(), 
+                            controllers, urlMappingsOld, urlMappings, controllerInstances);
             } else if (file.getName().endsWith(".class")) {
                 String className = packageName + "." + file.getName().replace(".class", "");
-                scanClassAndMethods(className, controllers, urlMappingsOld, urlMappings);
+                scanClassAndMethods(className, controllers, urlMappingsOld, 
+                                   urlMappings, controllerInstances);
             }
         }
     }
 
     private void scanClassAndMethods(String className, List<String> controllers, 
                                      HashMap<String, Mapping> urlMappingsOld, 
-                                     HashMap<Route, Mapping> urlMappings) {
+                                     HashMap<Route, Mapping> urlMappings,
+                                     Map<Class<?>, Object> controllerInstances) {
         try {
             Class<?> clazz = Class.forName(className);
             
             if (clazz.isAnnotationPresent(Controller.class)) {
                 controllers.add(className);
                 System.out.println(" Contrôleur détecté : " + className);
+                
+                // Créer l'instance unique du contrôleur dès le démarrage
+                try {
+                    Object instance = clazz.getDeclaredConstructor().newInstance();
+                    controllerInstances.put(clazz, instance);
+                    System.out.println("Instance singleton créée pour : " + className);
+                } catch (Exception e) {
+                    System.err.println("Erreur lors de l'instanciation de " + className + " : " + e.getMessage());
+                }
 
+                // Scanner les méthodes du contrôleur
                 for (Method method : clazz.getDeclaredMethods()) {
                     
                     // Sprint 2 : Annotation @Url
@@ -139,5 +169,14 @@ public class FrameworkListener implements ServletContextListener {
     }
 
     @Override
-    public void contextDestroyed(ServletContextEvent sce) {}
+    public void contextDestroyed(ServletContextEvent sce) {
+        // Nettoyer les instances
+        Map<Class<?>, Object> controllerInstances = 
+            (Map<Class<?>, Object>) sce.getServletContext().getAttribute("controllerInstances");
+        if (controllerInstances != null) {
+            controllerInstances.clear();
+            System.out.println("[FRAMEWORK] Instances de contrôleurs nettoyées");
+        }
+        sce.getServletContext().removeAttribute("controllerInstances");
+    }
 }
