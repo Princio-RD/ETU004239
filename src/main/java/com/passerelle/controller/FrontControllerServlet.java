@@ -6,13 +6,14 @@ import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.List;
 
+import com.passerelle.constant.HttpMethod;
+import com.passerelle.core.Mapping;
+import com.passerelle.core.Route;
+
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-
-import com.passerelle.core.Mapping;
-import com.passerelle.core.Route;
 
 public class FrontControllerServlet extends HttpServlet {
 
@@ -47,7 +48,6 @@ public class FrontControllerServlet extends HttpServlet {
     }
 
     private void sprint1(PrintWriter out) {
-        
         @SuppressWarnings("unchecked")
         List<String> listeContro = (List<String>) getServletContext().getAttribute("listeContro");
         out.println("Controleurs (Sprint 1) :");
@@ -66,7 +66,9 @@ public class FrontControllerServlet extends HttpServlet {
         HashMap<Route, Mapping> urlMappings = (HashMap<Route, Mapping>) getServletContext().getAttribute("urlMappings");
         out.println("\nNouvelles routes (Sprint 3 - GetMapping/PostMapping) :");
         if (urlMappings != null) {
-            for (Route route : urlMappings.keySet()) out.println("- [" + route.getMethod() + "] " + route.getUrl());
+            for (Route route : urlMappings.keySet()) {
+                out.println("- [" + route.getMethod() + "] " + route.getUrl());
+            }
         }
     }
 
@@ -84,7 +86,13 @@ public class FrontControllerServlet extends HttpServlet {
 
     private boolean sprint3(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         String urlRelative = request.getRequestURI().substring(request.getContextPath().length());
-        String httpMethod = request.getMethod();
+        String httpMethodString = request.getMethod();
+        HttpMethod httpMethod = HttpMethod.fromString(httpMethodString);
+        
+        if (httpMethod == null) {
+            return false;
+        }
+
         @SuppressWarnings("unchecked")
         HashMap<Route, Mapping> urlMappings = (HashMap<Route, Mapping>) getServletContext().getAttribute("urlMappings");
 

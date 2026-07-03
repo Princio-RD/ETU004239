@@ -1,9 +1,12 @@
 package com.passerelle.listener;
 
 import java.io.File;
-import java.net.URL;
 import java.lang.reflect.Method;
-import java.util.*;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.List;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
@@ -11,6 +14,7 @@ import com.passerelle.annotation.Controller;
 import com.passerelle.annotation.GetMapping;
 import com.passerelle.annotation.PostMapping;
 import com.passerelle.annotation.Url;
+import com.passerelle.constant.HttpMethod;
 import com.passerelle.core.Mapping;
 import com.passerelle.core.Route;
 
@@ -26,10 +30,9 @@ public class FrameworkListener implements ServletContextListener {
         String packageToScan = ctx.getInitParameter("packageToScan");
         
         List<String> listeControllers = new ArrayList<>();
-        HashMap<String, Mapping> urlMappingsOld = new HashMap<>(); // Sprint 1 & 2
-        HashMap<Route, Mapping> urlMappings = new HashMap<>(); // Sprint 3
+        HashMap<String, Mapping> urlMappingsOld = new HashMap<>();
+        HashMap<Route, Mapping> urlMappings = new HashMap<>();
 
-        // Si aucun package n'est configuré, on s'arrête proprement
         if (packageToScan == null || packageToScan.isEmpty()) {
             ctx.setAttribute("listeContro", listeControllers);
             ctx.setAttribute("urlMappingsOld", urlMappingsOld);
@@ -44,15 +47,12 @@ public class FrameworkListener implements ServletContextListener {
             while (resources.hasMoreElements()) {
                 URL resource = resources.nextElement();
 
-                // CAS 1 : Mode Développement (Dossier classique)
                 if ("file".equals(resource.getProtocol())) {
                     File directory = new File(resource.toURI());
                     if (directory.exists() && directory.isDirectory()) {
                         scanDirectory(directory, packageToScan, listeControllers, urlMappingsOld, urlMappings);
                     }
-                } 
-                // CAS 2 : Mode Production (Fichier JAR)
-                else if ("jar".equals(resource.getProtocol())) {
+                } else if ("jar".equals(resource.getProtocol())) {
                     String jarPath = resource.getPath().substring(5, resource.getPath().indexOf("!"));
                     try (JarFile jarFile = new JarFile(jarPath)) {
                         Enumeration<JarEntry> entries = jarFile.entries();
@@ -72,7 +72,6 @@ public class FrameworkListener implements ServletContextListener {
             ctx.log("[FRAMEWORK] Erreur lors du scan global", e);
         }
 
-        // Sauvegarde dans le ServletContext
         ctx.setAttribute("listeContro", listeControllers);
         ctx.setAttribute("urlMappingsOld", urlMappingsOld);
         ctx.setAttribute("urlMappings", urlMappings);
@@ -103,12 +102,10 @@ public class FrameworkListener implements ServletContextListener {
         try {
             Class<?> clazz = Class.forName(className);
             
-            // Sprint 1 : Validation du contrôleur
             if (clazz.isAnnotationPresent(Controller.class)) {
                 controllers.add(className);
                 System.out.println(" Contrôleur détecté : " + className);
 
-                // Scan des méthodes de ce contrôleur
                 for (Method method : clazz.getDeclaredMethods()) {
                     
                     // Sprint 2 : Annotation @Url
@@ -123,7 +120,8 @@ public class FrameworkListener implements ServletContextListener {
                     if (method.isAnnotationPresent(GetMapping.class)) {
                         GetMapping getMapping = method.getAnnotation(GetMapping.class);
                         String urlValue = getMapping.value();
-                        urlMappings.put(new Route(urlValue, "GET"), new Mapping(className, method.getName()));
+                        urlMappings.put(new Route(urlValue, HttpMethod.GET), 
+                                      new Mapping(className, method.getName()));
                         System.out.println("  🔗 @GetMapping : [" + urlValue + "] GET -> " + method.getName() + "()");
                     }
                     
@@ -131,7 +129,8 @@ public class FrameworkListener implements ServletContextListener {
                     if (method.isAnnotationPresent(PostMapping.class)) {
                         PostMapping postMapping = method.getAnnotation(PostMapping.class);
                         String urlValue = postMapping.value();
-                        urlMappings.put(new Route(urlValue, "POST"), new Mapping(className, method.getName()));
+                        urlMappings.put(new Route(urlValue, HttpMethod.POST), 
+                                      new Mapping(className, method.getName()));
                         System.out.println("  🔗 @PostMapping : [" + urlValue + "] POST -> " + method.getName() + "()");
                     }
                 }
