@@ -76,6 +76,9 @@ public class FrameworkListener implements ServletContextListener {
                 }
             }
         } catch (Exception e) {
+            if (e instanceof IllegalStateException || (e.getCause() != null && e.getCause() instanceof IllegalStateException)) {
+                throw (e instanceof IllegalStateException ? (IllegalStateException) e : (IllegalStateException) e.getCause());
+            }
             ctx.log("[FRAMEWORK] Erreur lors du scan global", e);
         }
 
@@ -126,7 +129,6 @@ public class FrameworkListener implements ServletContextListener {
                 controllers.add(className);
                 System.out.println(" Contrôleur détecté : " + className);
                 
-                // Créer l'instance unique du contrôleur dès le démarrage
                 try {
                     Object instance = clazz.getDeclaredConstructor().newInstance();
                     controllerInstances.put(clazz, instance);
@@ -142,6 +144,11 @@ public class FrameworkListener implements ServletContextListener {
                     if (method.isAnnotationPresent(Url.class)) {
                         Url urlAnnotation = method.getAnnotation(Url.class);
                         String urlValue = urlAnnotation.value();
+
+                        if (urlMappingsOld.containsKey(urlValue)) {
+                            throw new IllegalStateException(" [CONFLIT DE ROUTE CRITIQUE] L'URL @Url '" + urlValue + "' est déjà associée à une méthode dans le framework !");
+                        }
+                        
                         urlMappingsOld.put(urlValue, new Mapping(className, method.getName()));
                         System.out.println("  🔗 @Url : [" + urlValue + "] -> " + method.getName() + "()");
                     }
@@ -150,18 +157,28 @@ public class FrameworkListener implements ServletContextListener {
                     if (method.isAnnotationPresent(GetMapping.class)) {
                         GetMapping getMapping = method.getAnnotation(GetMapping.class);
                         String urlValue = getMapping.value();
-                        urlMappings.put(new Route(urlValue, HttpMethod.GET), 
-                                      new Mapping(className, method.getName()));
-                        System.out.println("  🔗 @GetMapping : [" + urlValue + "] GET -> " + method.getName() + "()");
+                        Route newRoute = new Route(urlValue, HttpMethod.GET);
+
+                        if (urlMappings.containsKey(newRoute)) {
+                            throw new IllegalStateException(" [CONFLIT DE ROUTE CRITIQUE] La route [GET] '" + urlValue + "' est déjà associée à une autre méthode !");
+                        }
+                        
+                        urlMappings.put(newRoute, new Mapping(className, method.getName()));
+                        System.out.println("@GetMapping : [" + urlValue + "] GET -> " + method.getName() + "()");
                     }
                     
                     // Sprint 3 : Annotation @PostMapping
                     if (method.isAnnotationPresent(PostMapping.class)) {
                         PostMapping postMapping = method.getAnnotation(PostMapping.class);
                         String urlValue = postMapping.value();
-                        urlMappings.put(new Route(urlValue, HttpMethod.POST), 
-                                      new Mapping(className, method.getName()));
-                        System.out.println("  🔗 @PostMapping : [" + urlValue + "] POST -> " + method.getName() + "()");
+                        Route newRoute = new Route(urlValue, HttpMethod.POST);
+                        
+                        if (urlMappings.containsKey(newRoute)) {
+                            throw new IllegalStateException("[CONFLIT DE ROUTE CRITIQUE] La route [POST] '" + urlValue + "' est déjà associée à une autre méthode !");
+                        }
+                        
+                        urlMappings.put(newRoute, new Mapping(className, method.getName()));
+                        System.out.println(" @PostMapping : [" + urlValue + "] POST -> " + method.getName() + "()");
                     }
                 }
             }
@@ -170,7 +187,7 @@ public class FrameworkListener implements ServletContextListener {
 
     @Override
     public void contextDestroyed(ServletContextEvent sce) {
-        // Nettoyer les instances
+        @SuppressWarnings("unchecked")
         Map<Class<?>, Object> controllerInstances = 
             (Map<Class<?>, Object>) sce.getServletContext().getAttribute("controllerInstances");
         if (controllerInstances != null) {

@@ -39,41 +39,95 @@ public class FrontControllerServlet extends HttpServlet {
     }
 
     protected void processRequest(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        String urlRelative = request.getRequestURI().substring(request.getContextPath().length());
+        HttpMethod httpMethod = HttpMethod.fromString(request.getMethod());
+        
+        @SuppressWarnings("unchecked")
+        HashMap<Route, Mapping> urlMappings = (HashMap<Route, Mapping>) getServletContext().getAttribute("urlMappings");
+
+        Route currentRoute = new Route(urlRelative, httpMethod);
+        Mapping mapping = urlMappings.get(currentRoute);
+
+        if (mapping == null && urlMappings != null) {
+            for (Map.Entry<Route, Mapping> entry : urlMappings.entrySet()) {
+                Route route = entry.getKey();
+                
+                String routeUrl = route.getUrl();
+                if (urlRelative.equals(routeUrl)) {
+                    mapping = entry.getValue();
+                    System.out.println(" Match exact: " + urlRelative + " → " + route.getMethod());
+                    break;
+                }
+                
+                if (urlRelative.endsWith("/post") && routeUrl.equals(urlRelative.substring(0, urlRelative.length() - 5))) {
+                    if (httpMethod == HttpMethod.POST && route.getMethod() == HttpMethod.POST) {
+                        mapping = entry.getValue();
+                        System.out.println("POST détecté: " + urlRelative + " → " + routeUrl + " (" + route.getMethod() + ")");
+                        break;
+                    }
+                }
+                
+                if (urlRelative.endsWith("/get") && routeUrl.equals(urlRelative.substring(0, urlRelative.length() - 4))) {
+                    if (httpMethod == HttpMethod.GET && route.getMethod() == HttpMethod.GET) {
+                        mapping = entry.getValue();
+                        System.out.println("🔄 GET détecté: " + urlRelative + " → " + routeUrl + " (" + route.getMethod() + ")");
+                        break;
+                    }
+                }
+            }
+        }
+        
+        response.setContentType("text/plain;charset=UTF-8");
+        PrintWriter out = response.getWriter();
+        
+        if (mapping != null) {
+            executerMethode(mapping, request, response, out);
+        } else {
+            afficherSprints(out);
+        }
+    }
+    
+    // Méthode pour exécuter la méthode du contrôleur via reflection
+    @SuppressWarnings("unchecked")
+    private void executerMethode(Mapping mapping, HttpServletRequest request, HttpServletResponse response, PrintWriter out) {
         try {
-            // Gestion des routes Sprint 3 
-            if (sprint3(request, response)) return;
+            Map<Class<?>, Object> controllerInstances = 
+                (Map<Class<?>, Object>) getServletContext().getAttribute("controllerInstances");
             
-            // Fallback sur Sprint 2
-            if (sprint2(request, response)) return;
-            
-            // Cas spécial
-            if (sprint0(request, response)) return;
-
-            // Affichage des informations de debug
-            response.setContentType("text/plain;charset=UTF-8");
-            try (PrintWriter out = response.getWriter()) {
-                sprint1(out);
+            if (controllerInstances == null) {
+                out.println("Erreur: Aucune instance de contrôleur disponible");
+                return;
             }
+
+            Class<?> clazz = Class.forName(mapping.getClassName());
+            Object controllerInstance = controllerInstances.get(clazz);
+            
+            if (controllerInstance == null) {
+                controllerInstance = clazz.getDeclaredConstructor().newInstance();
+                controllerInstances.put(clazz, controllerInstance);
+                System.out.println("[FRAMEWORK] Instance créée à la volée pour : " + clazz.getName());
+            }
+            
+            Method method = clazz.getDeclaredMethod(mapping.getMethodName());
+            Object result = method.invoke(controllerInstance);
+
+            System.out.println(" Méthode exécutée : " + mapping.getMethodName() + "()");
+            System.out.println("   - URL : " + request.getRequestURI());
+            System.out.println("   - Méthode HTTP : " + request.getMethod());
+            System.out.println("   - Contrôleur : " + clazz.getSimpleName());
+            System.out.println("   - Instance (hashCode) : " + controllerInstance.hashCode());
+
+            if (result != null) {
+                out.println(result.toString());
+            }
+            
         } catch (Exception e) {
-            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            response.setContentType("text/plain;charset=UTF-8");
-            try (PrintWriter out = response.getWriter()) {
-                out.println("Erreur : " + e.getMessage());
-                e.printStackTrace(out);
-            }
+            out.println("Erreur lors de l'exécution : " + e.getMessage());
+            e.printStackTrace();
         }
     }
-
-    private boolean sprint0(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        String uri = request.getRequestURI();
-        if (uri != null && uri.contains("/bank2")) {
-            response.sendRedirect("http://localhost:8080/BANK2/cheque/list_cheque");
-            return true;
-        }
-        return false;
-    }
-
-    private void sprint1(PrintWriter out) {
+    
+    private void afficherSprints(PrintWriter out) {
         @SuppressWarnings("unchecked")
         List<String> listeContro = (List<String>) getServletContext().getAttribute("listeContro");
         out.println("Controleurs (Sprint 1) :");
@@ -96,111 +150,5 @@ public class FrontControllerServlet extends HttpServlet {
                 out.println("- [" + route.getMethod() + "] " + route.getUrl());
             }
         }
-    }
-
-    private boolean sprint2(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        String urlRelative = request.getRequestURI().substring(request.getContextPath().length());
-        @SuppressWarnings("unchecked")
-        HashMap<String, Mapping> urlMappingsOld = (HashMap<String, Mapping>) getServletContext().getAttribute("urlMappingsOld");
-
-        if (urlMappingsOld != null && urlMappingsOld.containsKey(urlRelative)) {
-            executerMethode(urlMappingsOld.get(urlRelative), request, response);
-            return true;
-        }
-        return false;
-    }
-
-    private boolean sprint3(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        String urlRelative = request.getRequestURI().substring(request.getContextPath().length());
-        String httpMethodString = request.getMethod();
-        HttpMethod httpMethod = HttpMethod.fromString(httpMethodString);
-        
-        if (httpMethod == null) {
-            return false;
-        }
-
-        @SuppressWarnings("unchecked")
-        HashMap<Route, Mapping> urlMappings = (HashMap<Route, Mapping>) getServletContext().getAttribute("urlMappings");
-
-        if (urlMappings != null) {
-            // 1. Recherche exacte d'abord
-            Route currentRoute = new Route(urlRelative, httpMethod);
-            if (urlMappings.containsKey(currentRoute)) {
-                executerMethode(urlMappings.get(currentRoute), request, response);
-                return true;
-            }
-
-            // 2. Recherche avec pattern matching (pour les routes dynamiques)
-            for (Map.Entry<Route, Mapping> entry : urlMappings.entrySet()) {
-                Route route = entry.getKey();
-                if (route.getMethod().equals(httpMethod) && matchRoute(route.getUrl(), urlRelative)) {
-                    executerMethode(entry.getValue(), request, response);
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Match une route avec pattern (ex: /profil/{id} match /profil/123)
-     */
-    private boolean matchRoute(String pattern, String url) {
-        if (pattern.equals(url)) return true;
-        
-        String[] patternParts = pattern.split("/");
-        String[] urlParts = url.split("/");
-        
-        if (patternParts.length != urlParts.length) return false;
-        
-        for (int i = 0; i < patternParts.length; i++) {
-            if (patternParts[i].startsWith("{") && patternParts[i].endsWith("}")) {
-                continue; // C'est un paramètre dynamique, on ignore
-            }
-            if (!patternParts[i].equals(urlParts[i])) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    // executer les methode du controller
-    @SuppressWarnings("unchecked")
-    private void executerMethode(Mapping mapping, HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        try {
-            Map<Class<?>, Object> controllerInstances = 
-                (Map<Class<?>, Object>) getServletContext().getAttribute("controllerInstances");
-            
-            if (controllerInstances == null) {
-                throw new ServletException("Aucune instance de contrôleur disponible");
-            }
-
-            Class<?> clazz = Class.forName(mapping.getClassName());
-
-            Object controllerInstance = controllerInstances.get(clazz);
-            
-            if (controllerInstance == null) {
-                controllerInstance = clazz.getDeclaredConstructor().newInstance();
-                controllerInstances.put(clazz, controllerInstance);
-                System.out.println("[FRAMEWORK] Instance créée à la volée pour : " + clazz.getName());
-            }
-
-            Method methodJava = clazz.getDeclaredMethod(mapping.getMethodName());
-            Object result = methodJava.invoke(controllerInstance);
-            
-            if (result != null) {
-                response.setContentType("text/plain;charset=UTF-8");
-                try (PrintWriter out = response.getWriter()) {
-                    out.println(result.toString());
-                }
-            }
-        } catch (Exception e) {
-            throw new ServletException(e);
-        }
-    }
-
-    @Override
-    public void destroy() {
-        super.destroy();
     }
 }
