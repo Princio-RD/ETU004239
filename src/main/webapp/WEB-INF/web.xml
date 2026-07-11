@@ -5,7 +5,7 @@
          https://jakarta.ee/xml/ns/jakartaee/web-app_6_0.xsd"
          version="6.0">
 
-    <display-name>Sprint 2 - Routage @Url</display-name>
+    <display-name>Sprint 3 - Routage GetMapping/PostMapping</display-name>
 
     <context-param>
         <param-name>packageToScan</param-name>
@@ -27,4 +27,4 @@
         <url-pattern>/*</url-pattern>
     </servlet-mapping>
 
-</web.xml>
+</web-app>

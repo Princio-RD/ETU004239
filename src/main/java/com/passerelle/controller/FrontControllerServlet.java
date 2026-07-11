@@ -6,7 +6,9 @@ import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.List;
 
+import com.passerelle.constant.HttpMethod;
 import com.passerelle.core.Mapping;
+import com.passerelle.core.Route;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
@@ -45,19 +47,22 @@ public class FrontControllerServlet extends HttpServlet {
         
         String urlRelative = request.getRequestURI()
             .substring(request.getContextPath().length());
+        HttpMethod httpMethod = HttpMethod.fromString(request.getMethod());
         
         response.setContentType("text/plain;charset=UTF-8");
         PrintWriter out = response.getWriter();
         
         @SuppressWarnings("unchecked")
-        HashMap<String, Mapping> urlMappings = (HashMap<String, Mapping>) 
+        HashMap<Route, Mapping> urlMappings = (HashMap<Route, Mapping>) 
             getServletContext().getAttribute("urlMappings");
         
-        Mapping mapping = urlMappings.get(urlRelative);
+        Route currentRoute = new Route(urlRelative, httpMethod);
+        Mapping mapping = urlMappings.get(currentRoute);
         
         if (mapping != null) {
-            out.println("=== SPRINT 2 - Routage @Url ===");
+            out.println("=== SPRINT 3 - Routage GetMapping/PostMapping ===");
             out.println("URL : " + urlRelative);
+            out.println("Methode HTTP : " + httpMethod);
             out.println();
             
             try {
@@ -70,7 +75,7 @@ public class FrontControllerServlet extends HttpServlet {
                 e.printStackTrace(out);
             }
         } else {
-            afficherRoutes(out, urlRelative);
+            afficherRoutes(out, urlRelative, httpMethod);
         }
     }
     
@@ -82,17 +87,18 @@ public class FrontControllerServlet extends HttpServlet {
         return result != null ? result.toString() : "null";
     }
     
-    private void afficherRoutes(PrintWriter out, String url) {
+    private void afficherRoutes(PrintWriter out, String url, HttpMethod method) {
         @SuppressWarnings("unchecked")
         List<String> listeControllers = (List<String>) 
             getServletContext().getAttribute("listeContro");
         
         @SuppressWarnings("unchecked")
-        HashMap<String, Mapping> urlMappings = (HashMap<String, Mapping>) 
+        HashMap<Route, Mapping> urlMappings = (HashMap<Route, Mapping>) 
             getServletContext().getAttribute("urlMappings");
         
-        out.println("=== SPRINT 2 - Routes @Url ===");
+        out.println("=== SPRINT 3 - Routes disponibles ===");
         out.println("URL demandee : " + url);
+        out.println("Methode HTTP : " + method);
         out.println();
         
         out.println("Controleurs :");
@@ -103,14 +109,15 @@ public class FrontControllerServlet extends HttpServlet {
         }
         out.println();
         
-        out.println("Routes disponibles :");
+        out.println("Routes GET/POST :");
         if (urlMappings != null && !urlMappings.isEmpty()) {
-            for (String route : urlMappings.keySet()) {
+            for (Route route : urlMappings.keySet()) {
                 Mapping mapping = urlMappings.get(route);
-                out.println("  " + route + " -> " + mapping.getMethodName() + "()");
+                out.println("  [" + route.getMethod() + "] " + route.getUrl() + 
+                           " -> " + mapping.getMethodName() + "()");
             }
         } else {
-            out.println("  Aucune route @Url trouvee");
+            out.println("  Aucune route GET/POST trouvee");
         }
     }
 }

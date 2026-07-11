@@ -11,8 +11,11 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
 import com.passerelle.annotation.Controller;
-import com.passerelle.annotation.Url;
+import com.passerelle.annotation.GetMapping;
+import com.passerelle.annotation.PostMapping;
+import com.passerelle.constant.HttpMethod;
 import com.passerelle.core.Mapping;
+import com.passerelle.core.Route;
 
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletContextEvent;
@@ -25,11 +28,8 @@ public class FrameworkListener implements ServletContextListener {
         ServletContext ctx = sce.getServletContext();
         String packageToScan = ctx.getInitParameter("packageToScan");
         
-        // SPRINT 1 : Liste des contrôleurs
         List<String> listeControllers = new ArrayList<>();
-        
-        // SPRINT 2 : Mappage URL → Méthode
-        HashMap<String, Mapping> urlMappings = new HashMap<>();
+        HashMap<Route, Mapping> urlMappings = new HashMap<>();
 
         if (packageToScan == null || packageToScan.isEmpty()) {
             ctx.setAttribute("listeContro", listeControllers);
@@ -70,26 +70,26 @@ public class FrameworkListener implements ServletContextListener {
                 }
             }
         } catch (Exception e) {
-            ctx.log("[SPRINT2] Erreur lors du scan", e);
+            ctx.log("[SPRINT3] Erreur lors du scan", e);
         }
 
-        // Stockage dans le contexte
         ctx.setAttribute("listeContro", listeControllers);
         ctx.setAttribute("urlMappings", urlMappings);
         
-        System.out.println("[SPRINT2] Scan terminé :");
-        System.out.println("  - Contrôleurs : " + listeControllers.size());
-        System.out.println("  - Routes @Url : " + urlMappings.size());
+        System.out.println("[SPRINT3] Scan termine :");
+        System.out.println("  - Controleurs : " + listeControllers.size());
+        System.out.println("  - Routes GET/POST : " + urlMappings.size());
         
-        for (String url : urlMappings.keySet()) {
-            Mapping mapping = urlMappings.get(url);
-            System.out.println("  🔗 " + url + " → " + mapping.getMethodName() + "()");
+        for (Route route : urlMappings.keySet()) {
+            Mapping mapping = urlMappings.get(route);
+            System.out.println("  [" + route.getMethod() + "] " + route.getUrl() + 
+                             " -> " + mapping.getMethodName() + "()");
         }
     }
 
     private void scanDirectory(File directory, String packageName, 
                                List<String> controllers,
-                               HashMap<String, Mapping> urlMappings) {
+                               HashMap<Route, Mapping> urlMappings) {
         File[] files = directory.listFiles();
         if (files == null) return;
         
@@ -106,28 +106,44 @@ public class FrameworkListener implements ServletContextListener {
     }
 
     private void scanClass(String className, List<String> controllers,
-                           HashMap<String, Mapping> urlMappings) {
+                           HashMap<Route, Mapping> urlMappings) {
         try {
             Class<?> clazz = Class.forName(className);
             
             if (clazz.isAnnotationPresent(Controller.class)) {
                 controllers.add(className);
                 
-                // SPRINT 2 : Scanner les méthodes @Url
                 for (Method method : clazz.getDeclaredMethods()) {
-                    if (method.isAnnotationPresent(Url.class)) {
-                        Url urlAnnotation = method.getAnnotation(Url.class);
-                        String urlValue = urlAnnotation.value();
-                        
-                        // Détection des conflits
-                        if (urlMappings.containsKey(urlValue)) {
+                    
+                    if (method.isAnnotationPresent(GetMapping.class)) {
+                        GetMapping getMapping = method.getAnnotation(GetMapping.class);
+                        String urlValue = getMapping.value();
+                        Route newRoute = new Route(urlValue, HttpMethod.GET);
+
+                        if (urlMappings.containsKey(newRoute)) {
                             throw new IllegalStateException(
-                                "[CONFLIT] URL '" + urlValue + "' déjà utilisée !"
+                                "[CONFLIT] Route [GET] '" + urlValue + "' deja utilisee !"
                             );
                         }
                         
-                        urlMappings.put(urlValue, new Mapping(className, method.getName()));
-                        System.out.println("  🔗 @Url : " + urlValue + " → " + 
+                        urlMappings.put(newRoute, new Mapping(className, method.getName()));
+                        System.out.println("  @GetMapping : " + urlValue + " GET -> " + 
+                                         method.getName() + "()");
+                    }
+                    
+                    if (method.isAnnotationPresent(PostMapping.class)) {
+                        PostMapping postMapping = method.getAnnotation(PostMapping.class);
+                        String urlValue = postMapping.value();
+                        Route newRoute = new Route(urlValue, HttpMethod.POST);
+                        
+                        if (urlMappings.containsKey(newRoute)) {
+                            throw new IllegalStateException(
+                                "[CONFLIT] Route [POST] '" + urlValue + "' deja utilisee !"
+                            );
+                        }
+                        
+                        urlMappings.put(newRoute, new Mapping(className, method.getName()));
+                        System.out.println("  @PostMapping : " + urlValue + " POST -> " + 
                                          method.getName() + "()");
                     }
                 }
@@ -139,5 +155,6 @@ public class FrameworkListener implements ServletContextListener {
     public void contextDestroyed(ServletContextEvent sce) {
         sce.getServletContext().removeAttribute("listeContro");
         sce.getServletContext().removeAttribute("urlMappings");
+        System.out.println("[SPRINT3] Nettoyage effectue");
     }
 }
