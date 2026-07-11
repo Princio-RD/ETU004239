@@ -29,157 +29,104 @@ public class FrameworkListener implements ServletContextListener {
     @Override
     public void contextInitialized(ServletContextEvent sce) {
         ServletContext ctx = sce.getServletContext();
-        String packageToScan = ctx.getInitParameter("packageToScan");
-        
-        List<String> listeControllers = new ArrayList<>();
-        HashMap<String, Mapping> urlMappingsOld = new HashMap<>();
-        HashMap<Route, Mapping> urlMappings = new HashMap<>();
-        
-        // Map pour stocker les instances uniques des contrôleurs (Singleton)
-        Map<Class<?>, Object> controllerInstances = new ConcurrentHashMap<>();
+        String pkg = ctx.getInitParameter("packageToScan");
 
-        if (packageToScan == null || packageToScan.isEmpty()) {
-            ctx.setAttribute("listeContro", listeControllers);
-            ctx.setAttribute("urlMappingsOld", urlMappingsOld);
-            ctx.setAttribute("urlMappings", urlMappings);
-            ctx.setAttribute("controllerInstances", controllerInstances);
-            return;
-        }
+        List<String> controllers = new ArrayList<>();
+        HashMap<String, Mapping> oldMappings = new HashMap<>();
+        HashMap<Route, Mapping> newMappings = new HashMap<>();
+        Map<Class<?>, Object> instances = new ConcurrentHashMap<>();
 
-        try {
-            String path = packageToScan.replace('.', '/');
-            Enumeration<URL> resources = Thread.currentThread().getContextClassLoader().getResources(path);
-
-            while (resources.hasMoreElements()) {
-                URL resource = resources.nextElement();
-
-                if ("file".equals(resource.getProtocol())) {
-                    File directory = new File(resource.toURI());
-                    if (directory.exists() && directory.isDirectory()) {
-                        scanDirectory(directory, packageToScan, listeControllers, 
-                                    urlMappingsOld, urlMappings, controllerInstances);
-                    }
-                } else if ("jar".equals(resource.getProtocol())) {
-                    String jarPath = resource.getPath().substring(5, resource.getPath().indexOf("!"));
-                    try (JarFile jarFile = new JarFile(jarPath)) {
-                        Enumeration<JarEntry> entries = jarFile.entries();
-                        while (entries.hasMoreElements()) {
-                            JarEntry entry = entries.nextElement();
-                            String name = entry.getName();
-                            
-                            if (name.startsWith(path) && name.endsWith(".class") && !entry.isDirectory()) {
-                                String className = name.replace("/", ".").replace(".class", "");
-                                scanClassAndMethods(className, listeControllers, urlMappingsOld, urlMappings, controllerInstances);
+        if (pkg != null && !pkg.isEmpty()) {
+            try {
+                String path = pkg.replace('.', '/');
+                Enumeration<URL> resources = Thread.currentThread().getContextClassLoader().getResources(path);
+                while (resources.hasMoreElements()) {
+                    URL url = resources.nextElement();
+                    if ("file".equals(url.getProtocol())) {
+                        File dir = new File(url.toURI());
+                        if (dir.exists() && dir.isDirectory()) {
+                            scanDir(dir, pkg, controllers, oldMappings, newMappings, instances);
+                        }
+                    } else if ("jar".equals(url.getProtocol())) {
+                        String jarPath = url.getPath().substring(5, url.getPath().indexOf("!"));
+                        try (JarFile jar = new JarFile(jarPath)) {
+                            Enumeration<JarEntry> entries = jar.entries();
+                            while (entries.hasMoreElements()) {
+                                JarEntry entry = entries.nextElement();
+                                String name = entry.getName();
+                                if (name.startsWith(path) && name.endsWith(".class") && !entry.isDirectory()) {
+                                    String cls = name.replace("/", ".").replace(".class", "");
+                                    scanClass(cls, controllers, oldMappings, newMappings, instances);
+                                }
                             }
                         }
                     }
                 }
+            } catch (Exception e) {
+                ctx.log("[Framework] Erreur scan", e);
             }
-        } catch (Exception e) {
-            if (e instanceof IllegalStateException || (e.getCause() != null && e.getCause() instanceof IllegalStateException)) {
-                throw (e instanceof IllegalStateException ? (IllegalStateException) e : (IllegalStateException) e.getCause());
-            }
-            ctx.log("[FRAMEWORK] Erreur lors du scan global", e);
         }
 
-        // Stocker toutes les données dans le contexte de l'application
-        ctx.setAttribute("listeContro", listeControllers);
-        ctx.setAttribute("urlMappingsOld", urlMappingsOld);
-        ctx.setAttribute("urlMappings", urlMappings);
-        ctx.setAttribute("controllerInstances", controllerInstances);
-        
-        System.out.println("[FRAMEWORK] Scan terminé : " + listeControllers.size() + " contrôleur(s)");
-        System.out.println("[FRAMEWORK] Routes Sprint 2 (@Url) : " + urlMappingsOld.size());
-        System.out.println("[FRAMEWORK] Routes Sprint 3 (@GetMapping/@PostMapping) : " + urlMappings.size());
-        System.out.println("[FRAMEWORK] Instances de contrôleurs créées : " + controllerInstances.size());
-        
-        // Afficher toutes les routes pour le debug
-        for (Route route : urlMappings.keySet()) {
-            System.out.println("  Route: [" + route.getMethod() + "] " + route.getUrl());
-        }
+        ctx.setAttribute("listeContro", controllers);
+        ctx.setAttribute("urlMappingsOld", oldMappings);
+        ctx.setAttribute("urlMappings", newMappings);
+        ctx.setAttribute("controllerInstances", instances);
+
+        System.out.println("[Framework] Scan ok : " + controllers.size() + " controleurs, " +
+                           oldMappings.size() + " @Url, " + newMappings.size() + " GET/POST");
     }
 
-    private void scanDirectory(File directory, String packageName, List<String> controllers, 
-                               HashMap<String, Mapping> urlMappingsOld, 
-                               HashMap<Route, Mapping> urlMappings,
-                               Map<Class<?>, Object> controllerInstances) {
-        File[] files = directory.listFiles();
+    private void scanDir(File dir, String pkg, List<String> controllers,
+                         HashMap<String, Mapping> oldMappings,
+                         HashMap<Route, Mapping> newMappings,
+                         Map<Class<?>, Object> instances) {
+        File[] files = dir.listFiles();
         if (files == null) return;
-        
-        for (File file : files) {
-            if (file.isDirectory()) {
-                scanDirectory(file, packageName + "." + file.getName(), 
-                            controllers, urlMappingsOld, urlMappings, controllerInstances);
-            } else if (file.getName().endsWith(".class")) {
-                String className = packageName + "." + file.getName().replace(".class", "");
-                scanClassAndMethods(className, controllers, urlMappingsOld, 
-                                   urlMappings, controllerInstances);
+        for (File f : files) {
+            if (f.isDirectory()) {
+                scanDir(f, pkg + "." + f.getName(), controllers, oldMappings, newMappings, instances);
+            } else if (f.getName().endsWith(".class")) {
+                String cls = pkg + "." + f.getName().replace(".class", "");
+                scanClass(cls, controllers, oldMappings, newMappings, instances);
             }
         }
     }
 
-    private void scanClassAndMethods(String className, List<String> controllers, 
-                                     HashMap<String, Mapping> urlMappingsOld, 
-                                     HashMap<Route, Mapping> urlMappings,
-                                     Map<Class<?>, Object> controllerInstances) {
+    private void scanClass(String className, List<String> controllers,
+                           HashMap<String, Mapping> oldMappings,
+                           HashMap<Route, Mapping> newMappings,
+                           Map<Class<?>, Object> instances) {
         try {
             Class<?> clazz = Class.forName(className);
-            
-            if (clazz.isAnnotationPresent(Controller.class)) {
-                controllers.add(className);
-                System.out.println(" Contrôleur détecté : " + className);
-                
-                try {
-                    Object instance = clazz.getDeclaredConstructor().newInstance();
-                    controllerInstances.put(clazz, instance);
-                    System.out.println("Instance singleton créée pour : " + className);
-                } catch (Exception e) {
-                    System.err.println("Erreur lors de l'instanciation de " + className + " : " + e.getMessage());
+            if (!clazz.isAnnotationPresent(Controller.class)) return;
+
+            controllers.add(className);
+            try {
+                instances.put(clazz, clazz.getDeclaredConstructor().newInstance());
+            } catch (Exception ignored) {}
+
+            for (Method m : clazz.getDeclaredMethods()) {
+                if (m.isAnnotationPresent(Url.class)) {
+                    String val = m.getAnnotation(Url.class).value();
+                    if (oldMappings.containsKey(val))
+                        throw new IllegalStateException("[Conflit] @Url " + val);
+                    oldMappings.put(val, new Mapping(className, m.getName()));
                 }
 
-                // Scanner les méthodes du contrôleur
-                for (Method method : clazz.getDeclaredMethods()) {
-                    
-                    // Sprint 2 : Annotation @Url
-                    if (method.isAnnotationPresent(Url.class)) {
-                        Url urlAnnotation = method.getAnnotation(Url.class);
-                        String urlValue = urlAnnotation.value();
+                if (m.isAnnotationPresent(GetMapping.class)) {
+                    String val = m.getAnnotation(GetMapping.class).value();
+                    Route r = new Route(val, HttpMethod.GET);
+                    if (newMappings.containsKey(r))
+                        throw new IllegalStateException("[Conflit] GET " + val);
+                    newMappings.put(r, new Mapping(className, m.getName()));
+                }
 
-                        if (urlMappingsOld.containsKey(urlValue)) {
-                            throw new IllegalStateException(" [CONFLIT DE ROUTE CRITIQUE] L'URL @Url '" + urlValue + "' est déjà associée à une méthode dans le framework !");
-                        }
-                        
-                        urlMappingsOld.put(urlValue, new Mapping(className, method.getName()));
-                        System.out.println("  🔗 @Url : [" + urlValue + "] -> " + method.getName() + "()");
-                    }
-                    
-                    // Sprint 3 : Annotation @GetMapping
-                    if (method.isAnnotationPresent(GetMapping.class)) {
-                        GetMapping getMapping = method.getAnnotation(GetMapping.class);
-                        String urlValue = getMapping.value();
-                        Route newRoute = new Route(urlValue, HttpMethod.GET);
-
-                        if (urlMappings.containsKey(newRoute)) {
-                            throw new IllegalStateException(" [CONFLIT DE ROUTE CRITIQUE] La route [GET] '" + urlValue + "' est déjà associée à une autre méthode !");
-                        }
-                        
-                        urlMappings.put(newRoute, new Mapping(className, method.getName()));
-                        System.out.println("@GetMapping : [" + urlValue + "] GET -> " + method.getName() + "()");
-                    }
-                    
-                    // Sprint 3 : Annotation @PostMapping
-                    if (method.isAnnotationPresent(PostMapping.class)) {
-                        PostMapping postMapping = method.getAnnotation(PostMapping.class);
-                        String urlValue = postMapping.value();
-                        Route newRoute = new Route(urlValue, HttpMethod.POST);
-                        
-                        if (urlMappings.containsKey(newRoute)) {
-                            throw new IllegalStateException("[CONFLIT DE ROUTE CRITIQUE] La route [POST] '" + urlValue + "' est déjà associée à une autre méthode !");
-                        }
-                        
-                        urlMappings.put(newRoute, new Mapping(className, method.getName()));
-                        System.out.println(" @PostMapping : [" + urlValue + "] POST -> " + method.getName() + "()");
-                    }
+                if (m.isAnnotationPresent(PostMapping.class)) {
+                    String val = m.getAnnotation(PostMapping.class).value();
+                    Route r = new Route(val, HttpMethod.POST);
+                    if (newMappings.containsKey(r))
+                        throw new IllegalStateException("[Conflit] POST " + val);
+                    newMappings.put(r, new Mapping(className, m.getName()));
                 }
             }
         } catch (ClassNotFoundException ignored) {}
@@ -187,13 +134,8 @@ public class FrameworkListener implements ServletContextListener {
 
     @Override
     public void contextDestroyed(ServletContextEvent sce) {
-        @SuppressWarnings("unchecked")
-        Map<Class<?>, Object> controllerInstances = 
-            (Map<Class<?>, Object>) sce.getServletContext().getAttribute("controllerInstances");
-        if (controllerInstances != null) {
-            controllerInstances.clear();
-            System.out.println("[FRAMEWORK] Instances de contrôleurs nettoyées");
-        }
+        Map<Class<?>, Object> instances = (Map<Class<?>, Object>) sce.getServletContext().getAttribute("controllerInstances");
+        if (instances != null) instances.clear();
         sce.getServletContext().removeAttribute("controllerInstances");
     }
 }

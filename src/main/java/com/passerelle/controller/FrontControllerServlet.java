@@ -2,7 +2,6 @@ package com.passerelle.controller;
 
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,117 +37,74 @@ public class FrontControllerServlet extends HttpServlet {
         processRequest(req, res);
     }
 
-    protected void processRequest(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        String urlRelative = request.getRequestURI().substring(request.getContextPath().length());
-        HttpMethod httpMethod = HttpMethod.fromString(request.getMethod());
-        
-        @SuppressWarnings("unchecked")
-        HashMap<Route, Mapping> urlMappings = (HashMap<Route, Mapping>) getServletContext().getAttribute("urlMappings");
+    @SuppressWarnings("unchecked")
+    protected void processRequest(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {
+        String url = req.getRequestURI().substring(req.getContextPath().length());
+        HttpMethod method = HttpMethod.fromString(req.getMethod());
 
-        Route currentRoute = new Route(urlRelative, httpMethod);
-        Mapping mapping = urlMappings.get(currentRoute);
+        HashMap<Route, Mapping> mappings = (HashMap<Route, Mapping>) getServletContext().getAttribute("urlMappings");
+        Route current = new Route(url, method);
+        Mapping mapping = mappings.get(current);
 
-        if (mapping == null && urlMappings != null) {
-            for (Map.Entry<Route, Mapping> entry : urlMappings.entrySet()) {
+        if (mapping == null && mappings != null) {
+            for (Map.Entry<Route, Mapping> entry : mappings.entrySet()) {
                 Route route = entry.getKey();
-                
                 String routeUrl = route.getUrl();
-                if (urlRelative.equals(routeUrl)) {
+                if (url.equals(routeUrl) ||
+                    (url.endsWith("/post") && routeUrl.equals(url.substring(0, url.length() - 5)) && method == HttpMethod.POST && route.getMethod() == HttpMethod.POST) ||
+                    (url.endsWith("/get") && routeUrl.equals(url.substring(0, url.length() - 4)) && method == HttpMethod.GET && route.getMethod() == HttpMethod.GET)) {
                     mapping = entry.getValue();
-                    System.out.println(" Match exact: " + urlRelative + " → " + route.getMethod());
                     break;
-                }
-                
-                if (urlRelative.endsWith("/post") && routeUrl.equals(urlRelative.substring(0, urlRelative.length() - 5))) {
-                    if (httpMethod == HttpMethod.POST && route.getMethod() == HttpMethod.POST) {
-                        mapping = entry.getValue();
-                        System.out.println("POST détecté: " + urlRelative + " → " + routeUrl + " (" + route.getMethod() + ")");
-                        break;
-                    }
-                }
-                
-                if (urlRelative.endsWith("/get") && routeUrl.equals(urlRelative.substring(0, urlRelative.length() - 4))) {
-                    if (httpMethod == HttpMethod.GET && route.getMethod() == HttpMethod.GET) {
-                        mapping = entry.getValue();
-                        System.out.println("🔄 GET détecté: " + urlRelative + " → " + routeUrl + " (" + route.getMethod() + ")");
-                        break;
-                    }
                 }
             }
         }
-        
-        response.setContentType("text/plain;charset=UTF-8");
-        PrintWriter out = response.getWriter();
-        
+
+        res.setContentType("text/plain;charset=UTF-8");
+        PrintWriter out = res.getWriter();
+
         if (mapping != null) {
-            executerMethode(mapping, request, response, out);
+            executer(mapping, req, out);
         } else {
-            afficherSprints(out);
+            afficher(out);
         }
     }
-    
-    // Méthode pour exécuter la méthode du contrôleur via reflection
+
     @SuppressWarnings("unchecked")
-    private void executerMethode(Mapping mapping, HttpServletRequest request, HttpServletResponse response, PrintWriter out) {
+    private void executer(Mapping mapping, HttpServletRequest req, PrintWriter out) {
         try {
-            Map<Class<?>, Object> controllerInstances = 
-                (Map<Class<?>, Object>) getServletContext().getAttribute("controllerInstances");
-            
-            if (controllerInstances == null) {
-                out.println("Erreur: Aucune instance de contrôleur disponible");
+            Map<Class<?>, Object> instances = (Map<Class<?>, Object>) getServletContext().getAttribute("controllerInstances");
+            if (instances == null) {
+                out.println("Erreur: instances indisponibles");
                 return;
             }
 
             Class<?> clazz = Class.forName(mapping.getClassName());
-            Object controllerInstance = controllerInstances.get(clazz);
-            
-            if (controllerInstance == null) {
-                controllerInstance = clazz.getDeclaredConstructor().newInstance();
-                controllerInstances.put(clazz, controllerInstance);
-                System.out.println("[FRAMEWORK] Instance créée à la volée pour : " + clazz.getName());
+            Object instance = instances.get(clazz);
+            if (instance == null) {
+                instance = clazz.getDeclaredConstructor().newInstance();
+                instances.put(clazz, instance);
             }
-            
-            Method method = clazz.getDeclaredMethod(mapping.getMethodName());
-            Object result = method.invoke(controllerInstance);
 
-            System.out.println(" Méthode exécutée : " + mapping.getMethodName() + "()");
-            System.out.println("   - URL : " + request.getRequestURI());
-            System.out.println("   - Méthode HTTP : " + request.getMethod());
-            System.out.println("   - Contrôleur : " + clazz.getSimpleName());
-            System.out.println("   - Instance (hashCode) : " + controllerInstance.hashCode());
-
-            if (result != null) {
-                out.println(result.toString());
-            }
-            
+            Object result = clazz.getDeclaredMethod(mapping.getMethodName()).invoke(instance);
+            if (result != null) out.println(result.toString());
         } catch (Exception e) {
-            out.println("Erreur lors de l'exécution : " + e.getMessage());
-            e.printStackTrace();
+            out.println("Erreur: " + e.getMessage());
+            e.printStackTrace(out);
         }
     }
-    
-    private void afficherSprints(PrintWriter out) {
-        @SuppressWarnings("unchecked")
-        List<String> listeContro = (List<String>) getServletContext().getAttribute("listeContro");
-        out.println("Controleurs (Sprint 1) :");
-        if (listeContro != null) {
-            for (String ctrl : listeContro) out.println("- " + ctrl);
-        }
-        
-        @SuppressWarnings("unchecked")
-        HashMap<String, Mapping> urlMappingsOld = (HashMap<String, Mapping>) getServletContext().getAttribute("urlMappingsOld");
-        out.println("\nAnciennes routes (Sprint 2 - @Url) :");
-        if (urlMappingsOld != null) {
-            for (String url : urlMappingsOld.keySet()) out.println("- " + url);
-        }
 
-        @SuppressWarnings("unchecked")
-        HashMap<Route, Mapping> urlMappings = (HashMap<Route, Mapping>) getServletContext().getAttribute("urlMappings");
-        out.println("\nNouvelles routes (Sprint 3 - GetMapping/PostMapping) :");
-        if (urlMappings != null) {
-            for (Route route : urlMappings.keySet()) {
-                out.println("- [" + route.getMethod() + "] " + route.getUrl());
-            }
-        }
+    @SuppressWarnings("unchecked")
+    private void afficher(PrintWriter out) {
+        List<String> ctrls = (List<String>) getServletContext().getAttribute("listeContro");
+        out.println("Controleurs :");
+        if (ctrls != null) for (String c : ctrls) out.println("- " + c);
+
+        HashMap<String, Mapping> old = (HashMap<String, Mapping>) getServletContext().getAttribute("urlMappingsOld");
+        out.println("\nRoutes @Url :");
+        if (old != null) for (String u : old.keySet()) out.println("- " + u);
+
+        HashMap<Route, Mapping> news = (HashMap<Route, Mapping>) getServletContext().getAttribute("urlMappings");
+        out.println("\nRoutes GET/POST :");
+        if (news != null) for (Route r : news.keySet()) out.println("- [" + r.getMethod() + "] " + r.getUrl());
     }
 }
