@@ -1,7 +1,9 @@
 package com.passerelle;
-import org.apache.catalina.startup.Tomcat;
-import org.apache.catalina.Context;
 import java.io.File;
+
+import org.apache.catalina.Context;
+import org.apache.catalina.startup.Tomcat;
+
 import com.passerelle.controller.FrontControllerServlet;
 
 public class Main {
