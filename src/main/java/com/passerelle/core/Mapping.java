@@ -1,8 +1,8 @@
 package com.passerelle.core;
 
 public class Mapping {
-    private final String className;
-    private final String methodName;
+    private String className;
+    private String methodName;
 
     public Mapping(String className, String methodName) {
         this.className = className;
