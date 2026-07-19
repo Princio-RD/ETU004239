@@ -4,6 +4,5 @@ com\passerelle\annotation\PostMapping.class
 com\passerelle\annotation\Controller.class
 com\passerelle\core\Route.class
 com\passerelle\annotation\Url.class
-com\passerelle\constant\HttpMethod.class
 com\passerelle\annotation\GetMapping.class
 com\passerelle\listener\FrameworkListener.class

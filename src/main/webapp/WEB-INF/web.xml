@@ -7,15 +7,42 @@
 
     <display-name>Projet de Test</display-name>
 
+    <!-- Package à scanner pour les contrôleurs -->
     <context-param>
         <param-name>packageToScan</param-name>
         <param-value>mg.itu.p4239.annotation.controller</param-value>
     </context-param>
 
+    <!-- Configuration de la base de données -->
+    <context-param>
+        <param-name>db_url</param-name>
+        <param-value>jdbc:postgresql://localhost:5432/testdb</param-value>
+    </context-param>
+    <context-param>
+        <param-name>db_user</param-name>
+        <param-value>postgres</param-value>
+    </context-param>
+    <context-param>
+        <param-name>db_password</param-name>
+        <param-value>Pr20071010</param-value>
+    </context-param>
+
+    <!-- Configuration des vues pour le moteur -->
+    <context-param>
+        <param-name>view_prefix</param-name>
+        <param-value>/WEB-INF/views/</param-value>
+    </context-param>
+    <context-param>
+        <param-name>view_suffix</param-name>
+        <param-value>.jsp</param-value>
+    </context-param>
+
+    <!-- Initialisation du framework -->
     <listener>
         <listener-class>com.passerelle.listener.FrameworkListener</listener-class>
     </listener>
 
+    <!-- Servlet frontal du moteur -->
     <servlet>
         <servlet-name>FrontController</servlet-name>
         <servlet-class>com.passerelle.controller.FrontControllerServlet</servlet-class>

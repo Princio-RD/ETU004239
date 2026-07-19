@@ -3,147 +3,164 @@ package com.passerelle.listener;
 import java.io.File;
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.net.URLDecoder;
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
-
-import com.passerelle.annotation.Controller;
-import com.passerelle.annotation.GetMapping;
-import com.passerelle.annotation.PostMapping;
-import com.passerelle.core.Mapping;
-import com.passerelle.core.Route;
-
-import jakarta.servlet.ServletContext;
-import jakarta.servlet.ServletContextEvent;
-import jakarta.servlet.ServletContextListener;
+import java.util.jar.JarInputStream;
+import jakarta.servlet.*;
+import com.passerelle.annotation.*;
+import com.passerelle.core.*;
 
 public class FrameworkListener implements ServletContextListener {
-
     @Override
     public void contextInitialized(ServletContextEvent sce) {
         ServletContext ctx = sce.getServletContext();
         String pkg = ctx.getInitParameter("packageToScan");
 
-        // 1. Initialisation des structures du conteneur (Le "ctx" du schéma)
+        System.out.println("=== DEBUT SCAN ===");
+        System.out.println("Package: " + pkg);
+
+        try {
+            Class.forName("org.postgresql.Driver");
+            Connection conn = DriverManager.getConnection(
+                ctx.getInitParameter("db_url"), 
+                ctx.getInitParameter("db_user"), 
+                ctx.getInitParameter("db_password")
+            );
+            ctx.setAttribute("dbConnection", conn);
+            System.out.println("DB Connected");
+        } catch (Exception e) {
+            System.err.println("Erreur DB: " + e.getMessage());
+        }
+
         HashMap<Route, Mapping> urlMappings = new HashMap<>();
         Map<Class<?>, Object> instances = new ConcurrentHashMap<>();
-
-        // 2. Initialisation de la DataSource (Base de données)
-        String dbUrl = ctx.getInitParameter("db_url");
-        String dbUser = ctx.getInitParameter("db_user");
-        String dbPwd = ctx.getInitParameter("db_password");
-
-        if (dbUrl != null && !dbUrl.isEmpty()) {
-            try {
-                if (dbUrl.contains("mysql")) Class.forName("com.mysql.cj.jdbc.Driver");
-                else if (dbUrl.contains("postgresql")) Class.forName("org.postgresql.Driver");
-                else if (dbUrl.contains("sqlite")) Class.forName("org.sqlite.JDBC");
+        
+        try {
+            String path = pkg.replace('.', '/');
+            Enumeration<URL> resources = Thread.currentThread().getContextClassLoader().getResources(path);
+            
+            while (resources.hasMoreElements()) {
+                URL resource = resources.nextElement();
+                System.out.println("Resource: " + resource);
+                System.out.println("Protocol: " + resource.getProtocol());
                 
-                Connection conn = DriverManager.getConnection(dbUrl, dbUser, dbPwd);
-                
-                // INJECTION DE LA CONNEXION DANS LE CONTENEUR IoC
-                instances.put(Connection.class, conn);
-                System.out.println("[Framework] DataSource initialisée et ajoutée au conteneur.");
-            } catch (Exception e) {
-                ctx.log("[Framework] Erreur d'initialisation de la base de données", e);
-            }
-        }
-
-        // 3. Scan des contrôleurs
-        if (pkg != null && !pkg.isEmpty()) {
-            try {
-                String path = pkg.replace('.', '/');
-                Enumeration<URL> resources = Thread.currentThread().getContextClassLoader().getResources(path);
-                while (resources.hasMoreElements()) {
-                    URL url = resources.nextElement();
-                    if ("file".equals(url.getProtocol())) {
-                        File dir = new File(url.toURI());
-                        if (dir.exists() && dir.isDirectory()) {
-                            scanDir(dir, pkg, urlMappings, instances);
-                        }
-                    } else if ("jar".equals(url.getProtocol())) {
-                        String jarPath = url.getPath().substring(5, url.getPath().indexOf("!"));
-                        try (JarFile jar = new JarFile(jarPath)) {
-                            Enumeration<JarEntry> entries = jar.entries();
-                            while (entries.hasMoreElements()) {
-                                JarEntry entry = entries.nextElement();
-                                String name = entry.getName();
-                                if (name.startsWith(path) && name.endsWith(".class") && !entry.isDirectory()) {
-                                    scanClass(name.replace("/", ".").replace(".class", ""), urlMappings, instances);
-                                }
-                            }
-                        }
-                    }
+                if (resource.getProtocol().equals("file")) {
+                    File dir = new File(resource.toURI());
+                    scanDir(dir, pkg, urlMappings, instances);
+                } else if (resource.getProtocol().equals("jar")) {
+                    scanJar(resource, pkg, urlMappings, instances);
                 }
-            } catch (Exception e) {
-                ctx.log("[Framework] Erreur lors du scan du package", e);
             }
+        } catch (Exception e) {
+            System.err.println("Erreur Scan: " + e.getMessage());
+            e.printStackTrace();
         }
-
-        // 4. Sauvegarde dans le ServletContext
+        
+        System.out.println("Mappings enregistrés: " + urlMappings.size());
+        for (Route r : urlMappings.keySet()) {
+            System.out.println("  " + r.getMethod() + " " + r.getUrl());
+        }
+        System.out.println("=== FIN SCAN ===");
+        
         ctx.setAttribute("urlMappings", urlMappings);
         ctx.setAttribute("controllerInstances", instances);
-        System.out.println("[Framework] Démarrage terminé. " + urlMappings.size() + " routes prêtes.");
+    }
+
+    private void scanJar(URL jarUrl, String pkg, HashMap<Route, Mapping> mappings, Map<Class<?>, Object> instances) {
+        try {
+            String jarPath = jarUrl.getPath();
+            jarPath = URLDecoder.decode(jarPath, "UTF-8");
+            jarPath = jarPath.substring(5, jarPath.indexOf("!"));
+            System.out.println("Scan JAR: " + jarPath);
+            
+            try (JarInputStream jarStream = new JarInputStream(new java.io.FileInputStream(jarPath))) {
+                JarEntry entry;
+                String packagePath = pkg.replace('.', '/');
+                while ((entry = jarStream.getNextJarEntry()) != null) {
+                    String name = entry.getName();
+                    if (name.endsWith(".class") && name.startsWith(packagePath)) {
+                        String className = name.replace('/', '.').replace(".class", "");
+                        try {
+                            Class<?> clazz = Class.forName(className);
+                            if (clazz.isAnnotationPresent(Controller.class)) {
+                                System.out.println("  Controleur: " + className);
+                                instances.putIfAbsent(clazz, clazz.getDeclaredConstructor().newInstance());
+                                for (Method m : clazz.getDeclaredMethods()) {
+                                    if (m.isAnnotationPresent(GetMapping.class)) {
+                                        GetMapping a = m.getAnnotation(GetMapping.class);
+                                        mappings.put(new Route(a.value(), "GET"), 
+                                                    new Mapping(clazz.getName(), m.getName(), a.view()));
+                                        System.out.println("    GET " + a.value());
+                                    } else if (m.isAnnotationPresent(PostMapping.class)) {
+                                        PostMapping a = m.getAnnotation(PostMapping.class);
+                                        mappings.put(new Route(a.value(), "POST"), 
+                                                    new Mapping(clazz.getName(), m.getName(), a.view()));
+                                        System.out.println("    POST " + a.value());
+                                    } else if (m.isAnnotationPresent(Url.class)) {
+                                        Url a = m.getAnnotation(Url.class);
+                                        mappings.put(new Route(a.value(), "GET"), 
+                                                    new Mapping(clazz.getName(), m.getName(), ""));
+                                        System.out.println("    URL " + a.value());
+                                    }
+                                }
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Erreur scan JAR: " + e.getMessage());
+        }
     }
 
     private void scanDir(File dir, String pkg, HashMap<Route, Mapping> mappings, Map<Class<?>, Object> instances) {
         File[] files = dir.listFiles();
         if (files == null) return;
+        
         for (File f : files) {
             if (f.isDirectory()) {
                 scanDir(f, pkg + "." + f.getName(), mappings, instances);
             } else if (f.getName().endsWith(".class")) {
-                scanClass(pkg + "." + f.getName().replace(".class", ""), mappings, instances);
+                try {
+                    String className = pkg + "." + f.getName().replace(".class", "");
+                    Class<?> clazz = Class.forName(className);
+                    
+                    if (!clazz.isAnnotationPresent(Controller.class)) continue;
+                    
+                    instances.putIfAbsent(clazz, clazz.getDeclaredConstructor().newInstance());
+                    
+                    for (Method m : clazz.getDeclaredMethods()) {
+                        if (m.isAnnotationPresent(GetMapping.class)) {
+                            GetMapping a = m.getAnnotation(GetMapping.class);
+                            mappings.put(new Route(a.value(), "GET"), new Mapping(clazz.getName(), m.getName(), a.view()));
+                        } else if (m.isAnnotationPresent(PostMapping.class)) {
+                            PostMapping a = m.getAnnotation(PostMapping.class);
+                            mappings.put(new Route(a.value(), "POST"), new Mapping(clazz.getName(), m.getName(), a.view()));
+                        } else if (m.isAnnotationPresent(Url.class)) {
+                            Url a = m.getAnnotation(Url.class);
+                            mappings.put(new Route(a.value(), "GET"), new Mapping(clazz.getName(), m.getName(), ""));
+                        }
+                    }
+                } catch (Exception ignored) {}
             }
         }
-    }
-
-    private void scanClass(String className, HashMap<Route, Mapping> mappings, Map<Class<?>, Object> instances) {
-        try {
-            Class<?> clazz = Class.forName(className);
-            if (!clazz.isAnnotationPresent(Controller.class)) return;
-
-            try {
-                instances.putIfAbsent(clazz, clazz.getDeclaredConstructor().newInstance());
-            } catch (Exception ignored) {}
-
-            for (Method m : clazz.getDeclaredMethods()) {
-                if (m.isAnnotationPresent(GetMapping.class)) {
-                    mappings.put(new Route(m.getAnnotation(GetMapping.class).value(), "GET"), new Mapping(className, m.getName()));
-                }
-                if (m.isAnnotationPresent(PostMapping.class)) {
-                    mappings.put(new Route(m.getAnnotation(PostMapping.class).value(), "POST"), new Mapping(className, m.getName()));
-                }
-            }
-        } catch (ClassNotFoundException ignored) {}
     }
 
     @Override
     public void contextDestroyed(ServletContextEvent sce) {
-        ServletContext ctx = sce.getServletContext();
-        
-        // Nettoyage propre de la connexion base de données
-        @SuppressWarnings("unchecked")
-        Map<Class<?>, Object> instances = (Map<Class<?>, Object>) ctx.getAttribute("controllerInstances");
-        if (instances != null && instances.containsKey(Connection.class)) {
-            Connection conn = (Connection) instances.get(Connection.class);
-            try {
-                if (conn != null && !conn.isClosed()) {
-                    conn.close();
-                    System.out.println("[Framework] Connexion base de données fermée proprement.");
-                }
-            } catch (SQLException e) {
-                e.printStackTrace();
+        try {
+            Connection conn = (Connection) sce.getServletContext().getAttribute("dbConnection");
+            if (conn != null && !conn.isClosed()) {
+                conn.close();
             }
+        } catch (Exception e) {
+            sce.getServletContext().log("Erreur fermeture DB", e);
         }
-        
-        ctx.removeAttribute("urlMappings");
-        ctx.removeAttribute("controllerInstances");
+        sce.getServletContext().removeAttribute("urlMappings");
+        sce.getServletContext().removeAttribute("controllerInstances");
     }
 }

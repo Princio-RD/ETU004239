@@ -4,69 +4,53 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
-
-import com.passerelle.core.Mapping;
-import com.passerelle.core.Route;
-
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.*;
+import jakarta.servlet.http.*;
+import com.passerelle.core.*;
 
 public class FrontControllerServlet extends HttpServlet {
-
     @Override
-    @SuppressWarnings("unchecked")
     protected void service(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {
         String url = req.getRequestURI().substring(req.getContextPath().length());
-        String methodHTTP = req.getMethod();
-        
-        Route currentRoute = new Route(url, methodHTTP);
+        Route route = new Route(url, req.getMethod());
         HashMap<Route, Mapping> mappings = (HashMap<Route, Mapping>) getServletContext().getAttribute("urlMappings");
 
-        if (mappings != null && mappings.containsKey(currentRoute)) {
-            Mapping mapping = mappings.get(currentRoute);
-            
+        if (mappings != null && mappings.containsKey(route)) {
+            Mapping map = mappings.get(route);
             try {
-                // Récupération de l'instance du contrôleur depuis le conteneur (IoC)
                 Map<Class<?>, Object> instances = (Map<Class<?>, Object>) getServletContext().getAttribute("controllerInstances");
-                Class<?> clazz = Class.forName(mapping.getClassName());
-                Object controllerInstance = instances.get(clazz);
+                Object ctrl = instances.get(Class.forName(map.getClassName()));
+                Method m = null;
+                try {
+                    m = ctrl.getClass().getDeclaredMethod(map.getMethodName(), HttpServletRequest.class);
+                    m.invoke(ctrl, req);
+                } catch (NoSuchMethodException e1) {
+                    try {
+                        m = ctrl.getClass().getDeclaredMethod(map.getMethodName(), HttpServletRequest.class, HttpServletResponse.class);
+                        m.invoke(ctrl, req, res);
+                    } catch (NoSuchMethodException e2) {
+                        m = ctrl.getClass().getDeclaredMethod(map.getMethodName());
+                        m.invoke(ctrl);
+                    }
+                }
                 
-                // Recherche de la méthode ciblée
-                Method targetMethod = null;
-                for (Method m : clazz.getDeclaredMethods()) {
-                    if (m.getName().equals(mapping.getMethodName())) {
-                        targetMethod = m;
-                        break;
+                // Résolution vue (Prefix + View + Suffix)
+                String view = map.getView();
+                if (view != null && !view.isEmpty()) {
+                    String prefix = getServletContext().getInitParameter("view_prefix");
+                    String suffix = getServletContext().getInitParameter("view_suffix");
+                    String path = (prefix != null ? prefix : "") + view + (suffix != null ? suffix : "");
+                    
+                    // Vérifier si la réponse a déjà été écrite
+                    if (!res.isCommitted()) {
+                        req.getRequestDispatcher(path).forward(req, res);
                     }
                 }
-
-                if (targetMethod != null) {
-                    Object result;
-                    
-                    // Auto-injection : Si la méthode attend une HttpServletRequest, on la lui passe
-                    if (targetMethod.getParameterCount() == 1 && targetMethod.getParameterTypes()[0] == HttpServletRequest.class) {
-                        result = targetMethod.invoke(controllerInstance, req);
-                    } else {
-                        result = targetMethod.invoke(controllerInstance);
-                    }
-                    
-                    // Gestion du retour (Vue JSP ou Texte brut)
-                    if (result instanceof String) {
-                        String viewPath = (String) result;
-                        req.getRequestDispatcher(viewPath).forward(req, res);
-                    } else if (result != null) {
-                        res.setContentType("text/plain;charset=UTF-8");
-                        res.getWriter().print(result.toString());
-                    }
-                }
-            } catch (Exception e) {
-                throw new ServletException("Erreur d'exécution du contrôleur", e);
+            } catch (Exception e) { 
+                throw new ServletException(e); 
             }
         } else {
-            // Si la route n'existe pas
-            res.sendError(HttpServletResponse.SC_NOT_FOUND, "La ressource [" + methodHTTP + " " + url + "] est introuvable.");
+            res.sendError(404);
         }
     }
 }

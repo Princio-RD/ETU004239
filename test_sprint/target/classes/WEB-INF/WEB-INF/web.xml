@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="https://jakarta.ee/xml/ns/jakartaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee 
+         https://jakarta.ee/xml/ns/jakartaee/web-app_6_0.xsd"
+         version="6.0">
+
+    <display-name>Sprint0 Test</display-name>
+
+    <!-- Package à scanner -->
+    <context-param>
+        <param-name>packageToScan</param-name>
+        <param-value>mg.itu.p4239.annotation.controller</param-value>
+    </context-param>
+
+    <!-- Configuration de la base de données -->
+    <context-param>
+        <param-name>db_url</param-name>
+        <param-value>jdbc:postgresql://localhost:5432/testdb</param-value>
+    </context-param>
+    <context-param>
+        <param-name>db_user</param-name>
+        <param-value>postgres</param-value>
+    </context-param>
+    <context-param>
+        <param-name>db_password</param-name>
+        <param-value>Pr20071010</param-value>
+    </context-param>
+
+    <!-- Configuration des vues -->
+    <context-param>
+        <param-name>view_prefix</param-name>
+        <param-value>/WEB-INF/views/</param-value>
+    </context-param>
+    <context-param>
+        <param-name>view_suffix</param-name>
+        <param-value>.jsp</param-value>
+    </context-param>
+
+    <!-- Listener du framework -->
+    <listener>
+        <listener-class>com.passerelle.listener.FrameworkListener</listener-class>
+    </listener>
+
+    <!-- Front Controller -->
+    <servlet>
+        <servlet-name>FrontController</servlet-name>
+        <servlet-class>com.passerelle.controller.FrontControllerServlet</servlet-class>
+        <load-on-startup>1</load-on-startup>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>FrontController</servlet-name>
+        <url-pattern>/*</url-pattern>
+    </servlet-mapping>
+
+</web-app>

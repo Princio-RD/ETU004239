@@ -1,4 +1,6 @@
 mg\itu\Main.class
 mg\itu\p4239\annotation\controller\EmployeeController.class
+mg\itu\p4239\annotation\repository\EmployeRepository.class
+mg\itu\p4239\annotation\entity\Employe.class
 mg\itu\p4239\annotation\controller\UserController.class
 mg\itu\p4239\annotation\controller\ProduitController.class
