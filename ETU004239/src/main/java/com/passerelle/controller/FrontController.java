@@ -1,6 +1,6 @@
 package com.passerelle.controller;
 
-import com.passerelle.annotation.Url;
+import com.passerelle.annotation.RestApi;
 import com.passerelle.mapping.Mapping;
 import com.passerelle.mapping.ModelView;
 
@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import com.google.gson.Gson;
 import org.apache.commons.beanutils.ConvertUtils;
 
 import java.io.IOException;
@@ -17,22 +18,21 @@ import java.io.PrintWriter;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public class FrontController extends HttpServlet {
 
     private HashMap<String, Mapping> urlMappings;
-    private List<Class<?>> controllerClasses;
     private String viewPrefix;
     private String viewSuffix;
+    private Gson gson = new Gson();
 
     @Override
     public void init() throws ServletException {
         super.init();
 
-        this.urlMappings = (HashMap<String, Mapping>) getServletContext().getAttribute("urlMappings");
-        this.controllerClasses = (List<Class<?>>) getServletContext().getAttribute("controllerClasses");
+        this.urlMappings = (HashMap<String, Mapping>)
+                getServletContext().getAttribute("urlMappings");
         this.viewPrefix = getServletContext().getInitParameter("view.prefix");
         this.viewSuffix = getServletContext().getInitParameter("view.suffix");
 
@@ -48,40 +48,13 @@ public class FrontController extends HttpServlet {
         String page = request.getRequestURI()
                 .substring(request.getContextPath().length());
 
-        if (page.equals("/scan")) {
-            showScan(response);
-            return;
-        }
-
         String key = request.getMethod().toUpperCase() + ":" + page;
 
         if (urlMappings.containsKey(key)) {
             executeMapping(urlMappings.get(key), request, response);
-            return;
-        }
-
-        if (page.isEmpty() || page.equals("/")) {
-            page = "/index";
-        }
-
-        RequestDispatcher dispatch =
-                request.getRequestDispatcher("/WEB-INF/views" + page + ".jsp");
-        dispatch.forward(request, response);
-    }
-
-    private void showScan(HttpServletResponse response) throws IOException {
-        response.setContentType("text/plain;charset=UTF-8");
-        PrintWriter out = response.getWriter();
-
-        out.println("=== Controleurs ===");
-        for (Class<?> c : controllerClasses) {
-            out.println(" - " + c.getName());
-        }
-
-        out.println();
-        out.println("=== Mappings ===");
-        for (String key : urlMappings.keySet()) {
-            out.println(" " + key + " -> " + urlMappings.get(key));
+        } else {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND,
+                    "URL non mappee : " + key);
         }
     }
 
@@ -114,16 +87,31 @@ public class FrontController extends HttpServlet {
             }
 
             Object result = method.invoke(instance, args);
+	
+			// verification JSON
+            boolean isRest = clazz.isAnnotationPresent(RestApi.class)|| method.isAnnotationPresent(RestApi.class);
 
-            if (result instanceof ModelView) {
+            if (isRest) {
+                processRestApi(result, response);
+            } else if (result instanceof ModelView) {
                 processModelView((ModelView) result, request, response);
             } else {
-                showText(response, "Methode executee : " + mapping);
+                response.setContentType("text/plain;charset=UTF-8");
+                PrintWriter out = response.getWriter();
+                out.println("Methode executee : " + mapping);
             }
 
         } catch (Exception e) {
             throw new ServletException("Erreur invocation : " + e.getMessage(), e);
         }
+    }
+
+    private void processRestApi(Object result, HttpServletResponse response)
+            throws IOException {
+
+        response.setContentType("application/json;charset=UTF-8");
+        PrintWriter out = response.getWriter();
+        out.print(gson.toJson(result));
     }
 
     private void processModelView(ModelView mv, HttpServletRequest request,
@@ -137,11 +125,5 @@ public class FrontController extends HttpServlet {
         String view = viewPrefix + mv.getView() + viewSuffix;
         RequestDispatcher dispatch = request.getRequestDispatcher(view);
         dispatch.forward(request, response);
-    }
-
-    private void showText(HttpServletResponse response, String text) throws IOException {
-        response.setContentType("text/plain;charset=UTF-8");
-        PrintWriter out = response.getWriter();
-        out.println(text);
     }
 }
