@@ -20,13 +20,13 @@
 
 ---
 
-## Sprint 4 : Injection automatique des paramètres
-* **Principe :** Passer les données envoyées par le client (formulaire ou paramètres d'URL) directement aux arguments de la méthode du contrôleur. Le framework inspecte les noms et types des paramètres attendus par la méthode Java, récupère les valeurs correspondantes depuis `request.getParameter()`, effectue le transtypage (conversion de `String` vers `int`, `double`, etc.) et les injecte lors de l'appel de la méthode.
+## Sprint 4 : Injection simple des paramètres
+* **Principe :** Récupérer les paramètres simples envoyés par le client via la requête (`request.getParameter()`), effectuer le transtypage (conversion de `String` vers `int`, `double`, `Date`, etc.) et les injecter directement dans les arguments de la méthode du contrôleur.
 
 ---
 
-## Sprint 5 : Restitution MVC et redirection vers la vue (`ModelView`)
-* **Principe :** Séparer la logique métier de l'affichage (principe MVC). Au lieu de faire des `out.println()` dans le contrôleur, la méthode retourne un objet dédié (`ModelView`) contenant le chemin de la vue (ex: `liste-employes.jsp`) et les données à transmettre. Le `FrontController` récupère cet objet, injecte les données dans la requête (`request.setAttribute()`) et effectue une redirection côté serveur (`RequestDispatcher.forward()`) vers la page JSP.
+## Sprint 5 : Restitution MVC, `ModelView` et Résolution de Vue (Préfixe & Suffixe)
+* **Principe :** Séparer la logique métier de l'affichage. La méthode retourne un objet `ModelView` contenant le nom logique de la vue (ex: `"liste-employes"`) et les données à transmettre. Le `FrontController` applique les règles de **préfixe** (ex: `/WEB-INF/views/`) et de **suffixe** (ex: `.jsp`) configurées dans l'application pour reconstituer le chemin d'accès réel (`/WEB-INF/views/liste-employes.jsp`), injecte les données dans la requête (`request.setAttribute()`) et effectue la redirection serveur (`RequestDispatcher.forward()`).
 
 ---
 
@@ -38,10 +38,12 @@
 ## Sprint 7 : Configuration et gestion de la connexion à la base de données
 * **Principe :** Centraliser et fournir une gestion de la base de données au sein du framework. Les identifiants et paramètres de connexion (`db.driver`, `db.url`, `db.user`, `db.password`) sont déclarés dans le `web.xml` via des `<context-param>`. Le framework les charge au démarrage (via le `FrameListener`) et fournit un utilitaire ou une classe de gestion permettant aux contrôleurs ou services de récupérer une connexion JDBC active pour exécuter leurs requêtes BDD.
 
-## Sprint 8:
+---
 
-## sprint 7:
-* **Principe :** mahafantatra ny lalana ny paramètres par paramètres d'un formulaire;
+## Sprint 8-a : Traitement des formulaires paramètre par paramètre
+* **Principe :** Intercepter et associer dynamiquement les champs d'un formulaire HTTP (`POST` ou `GET`) aux paramètres individuels déclarés dans la méthode du contrôleur. Le framework analyse les noms des champs du formulaire et associe chaque valeur au paramètre correspondant de la méthode Java en effectuant les conversions de type requises.
 
-## sprint 7 -b:
-* **Principe:** objet directement pour 
+---
+
+## Sprint 8-b : Liaison directe d'un Formulaire vers un Objet (Object Form Binding)
+* **Principe :** Mapper automatiquement l'ensemble d'un formulaire vers un objet Java (Model / DTO). Au lieu de lister chaque paramètre un par un dans la signature de la méthode, la méthode reçoit directement un objet complexe (ex: `Employe emp`). Le framework instancie cet objet par réflexion et remplit automatiquement ses attributs à partir des champs du formulaire dont les noms correspondent aux propriétés de l'objet.

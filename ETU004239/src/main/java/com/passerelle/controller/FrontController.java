@@ -10,9 +10,12 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import org.apache.commons.beanutils.ConvertUtils;
+
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -82,7 +85,6 @@ public class FrontController extends HttpServlet {
             out.println("=== Controleurs ===");
             for (Class<?> c : controllerClasses) {
                 out.println(" - " + c.getName());
-
                 for (Method m : getAnnotatedMethods(c)) {
                     out.println("     -> " + m.getName());
                 }
@@ -96,6 +98,13 @@ public class FrontController extends HttpServlet {
             return;
         }
 
+        String key = request.getMethod().toUpperCase() + ":" + page;
+
+        if (urlMappings.containsKey(key)) {
+            executeMapping(urlMappings.get(key), request, response);
+            return;
+        }
+
         if (page.isEmpty() || page.equals("/")) {
             page = "/index";
         }
@@ -103,5 +112,47 @@ public class FrontController extends HttpServlet {
         RequestDispatcher dispatch =
                 request.getRequestDispatcher("/WEB-INF/views" + page + ".jsp");
         dispatch.forward(request, response);
+    }
+
+    private void executeMapping(Mapping mapping, HttpServletRequest request,
+                                HttpServletResponse response)
+            throws ServletException, IOException {
+
+        response.setContentType("text/plain;charset=UTF-8");
+        PrintWriter out = response.getWriter();
+
+        try {
+            Class<?> clazz = Class.forName(mapping.getClassName());
+            Object instance = clazz.getDeclaredConstructor().newInstance();
+
+            Method method = null;
+            for (Method m : clazz.getDeclaredMethods()) {
+                if (m.getName().equals(mapping.getMethodName())) {
+                    method = m;
+                    break;
+                }
+            }
+
+            if (method == null) {
+                throw new ServletException("Methode introuvable : " + mapping.getMethodName());
+            }
+
+            Parameter[] params = method.getParameters();
+            Object[] args = new Object[params.length];
+
+            for (int i = 0; i < params.length; i++) {
+                String value = request.getParameter(params[i].getName());
+                args[i] = ConvertUtils.convert(value, params[i].getType());
+                out.println("Param " + params[i].getName()
+                        + " = " + args[i]
+                        + " (" + params[i].getType().getSimpleName() + ")");
+            }
+
+            method.invoke(instance, args);
+            out.println("Methode executee : " + mapping);
+
+        } catch (Exception e) {
+            throw new ServletException("Erreur invocation : " + e.getMessage(), e);
+        }
     }
 }
