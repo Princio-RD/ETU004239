@@ -12,6 +12,16 @@
         <param-value>mg.itu.p4239.controller</param-value>
     </context-param>
 
+    <context-param>
+        <param-name>view.prefix</param-name>
+        <param-value>/WEB-INF/views/</param-value>
+    </context-param>
+
+    <context-param>
+        <param-name>view.suffix</param-name>
+        <param-value>.jsp</param-value>
+    </context-param>
+
     <servlet>
         <servlet-name>FrontController</servlet-name>
         <servlet-class>com.passerelle.controller.FrontController</servlet-class>
@@ -20,7 +30,7 @@
 
     <servlet-mapping>
         <servlet-name>FrontController</servlet-name>
-        <url-pattern>/*</url-pattern>
+        <url-pattern>/</url-pattern>
     </servlet-mapping>
 
 </web-app>
