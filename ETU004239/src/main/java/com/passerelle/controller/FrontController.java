@@ -3,6 +3,7 @@ package com.passerelle.controller;
 import com.passerelle.annotation.Controller;
 import com.passerelle.annotation.Url;
 import com.passerelle.mapping.Mapping;
+import com.passerelle.mapping.ModelView;
 
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletException;
@@ -19,17 +20,22 @@ import java.lang.reflect.Parameter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class FrontController extends HttpServlet {
 
     private List<Class<?>> controllerClasses = new ArrayList<>();
     private HashMap<String, Mapping> urlMappings = new HashMap<>();
+    private String viewPrefix;
+    private String viewSuffix;
 
     @Override
     public void init() throws ServletException {
         super.init();
 
         String packageScan = getServletContext().getInitParameter("packageToScan");
+        this.viewPrefix = getServletContext().getInitParameter("view.prefix");
+        this.viewSuffix = getServletContext().getInitParameter("view.suffix");
 
         if (packageScan == null || packageScan.isEmpty()) {
             throw new ServletException("erreur critique : parametre packageToScan non trouve");
@@ -79,22 +85,7 @@ public class FrontController extends HttpServlet {
                 .substring(request.getContextPath().length());
 
         if (page.equals("/scan")) {
-            response.setContentType("text/plain;charset=UTF-8");
-            PrintWriter out = response.getWriter();
-
-            out.println("=== Controleurs ===");
-            for (Class<?> c : controllerClasses) {
-                out.println(" - " + c.getName());
-                for (Method m : getAnnotatedMethods(c)) {
-                    out.println("     -> " + m.getName());
-                }
-            }
-
-            out.println();
-            out.println("=== Mappings ===");
-            for (String key : urlMappings.keySet()) {
-                out.println(" " + key + " -> " + urlMappings.get(key));
-            }
+            showScan(response);
             return;
         }
 
@@ -114,12 +105,28 @@ public class FrontController extends HttpServlet {
         dispatch.forward(request, response);
     }
 
+    private void showScan(HttpServletResponse response) throws IOException {
+        response.setContentType("text/plain;charset=UTF-8");
+        PrintWriter out = response.getWriter();
+
+        out.println("=== Controleurs ===");
+        for (Class<?> c : controllerClasses) {
+            out.println(" - " + c.getName());
+            for (Method m : getAnnotatedMethods(c)) {
+                out.println("     -> " + m.getName());
+            }
+        }
+
+        out.println();
+        out.println("=== Mappings ===");
+        for (String key : urlMappings.keySet()) {
+            out.println(" " + key + " -> " + urlMappings.get(key));
+        }
+    }
+
     private void executeMapping(Mapping mapping, HttpServletRequest request,
                                 HttpServletResponse response)
             throws ServletException, IOException {
-
-        response.setContentType("text/plain;charset=UTF-8");
-        PrintWriter out = response.getWriter();
 
         try {
             Class<?> clazz = Class.forName(mapping.getClassName());
@@ -143,16 +150,37 @@ public class FrontController extends HttpServlet {
             for (int i = 0; i < params.length; i++) {
                 String value = request.getParameter(params[i].getName());
                 args[i] = ConvertUtils.convert(value, params[i].getType());
-                out.println("Param " + params[i].getName()
-                        + " = " + args[i]
-                        + " (" + params[i].getType().getSimpleName() + ")");
             }
 
-            method.invoke(instance, args);
-            out.println("Methode executee : " + mapping);
+            Object result = method.invoke(instance, args);
+
+            if (result instanceof ModelView) {
+                processModelView((ModelView) result, request, response);
+            } else {
+                showText(response, "Methode executee : " + mapping);
+            }
 
         } catch (Exception e) {
             throw new ServletException("Erreur invocation : " + e.getMessage(), e);
         }
+    }
+
+    private void processModelView(ModelView mv, HttpServletRequest request,
+                                  HttpServletResponse response)
+            throws ServletException, IOException {
+
+        for (Map.Entry<String, Object> entry : mv.getData().entrySet()) {
+            request.setAttribute(entry.getKey(), entry.getValue());
+        }
+
+        String view = viewPrefix + mv.getView() + viewSuffix;
+        RequestDispatcher dispatch = request.getRequestDispatcher(view);
+        dispatch.forward(request, response);
+    }
+
+    private void showText(HttpServletResponse response, String text) throws IOException {
+        response.setContentType("text/plain;charset=UTF-8");
+        PrintWriter out = response.getWriter();
+        out.println(text);
     }
 }

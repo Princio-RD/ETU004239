@@ -40,10 +40,15 @@
 
 ---
 
-## Sprint 8-a : Traitement des formulaires paramètre par paramètre
+## Sprint 8 : Support des Réponses API REST (`@RestApi` / `@ResponseBody`)
+* **Principe :** Offrir la possibilité de retourner directement des données brutes (ex: JSON/XML) au lieu d'une vue HTML/JSP. On crée une annotation dédiée (ex: `@RestApi` ou `@ResponseBody`). Si la méthode invoquée (ou sa classe) possède cette annotation, le `FrontControllerServlet` shunte le mécanisme de résolution de vue (`ModelView`), sérialise la valeur de retour (en JSON via une bibliothèque ou un convertisseur personnalisé) et l'écrit directement dans le corps de la réponse HTTP (`response.getWriter().print(...)`) avec le `Content-Type` approprié (`application/json`).
+
+---
+
+## Sprint 9-a : Traitement des formulaires paramètre par paramètre
 * **Principe :** Intercepter et associer dynamiquement les champs d'un formulaire HTTP (`POST` ou `GET`) aux paramètres individuels déclarés dans la méthode du contrôleur. Le framework analyse les noms des champs du formulaire et associe chaque valeur au paramètre correspondant de la méthode Java en effectuant les conversions de type requises.
 
 ---
 
-## Sprint 8-b : Liaison directe d'un Formulaire vers un Objet (Object Form Binding)
+## Sprint 9-b : Liaison directe d'un Formulaire vers un Objet (Object Form Binding)
 * **Principe :** Mapper automatiquement l'ensemble d'un formulaire vers un objet Java (Model / DTO). Au lieu de lister chaque paramètre un par un dans la signature de la méthode, la méthode reçoit directement un objet complexe (ex: `Employe emp`). Le framework instancie cet objet par réflexion et remplit automatiquement ses attributs à partir des champs du formulaire dont les noms correspondent aux propriétés de l'objet.
