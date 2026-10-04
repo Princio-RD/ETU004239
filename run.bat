@@ -25,4 +25,6 @@ call "%TOMCAT_HOME%\bin\startup.bat"
 echo.
 echo === OK ===
 echo http://localhost:8084/TestOrigine/
+echo == pour les affichage ==
+echo http://localhost:8084/TestOrigine/scan
 pause

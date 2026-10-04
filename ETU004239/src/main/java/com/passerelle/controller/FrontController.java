@@ -1,6 +1,8 @@
 package com.passerelle.controller;
 
 import com.passerelle.annotation.Controller;
+import com.passerelle.annotation.Url;
+import com.passerelle.mapping.Mapping;
 
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletException;
@@ -10,13 +12,15 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 public class FrontController extends HttpServlet {
 
-    // sprint 1
     private List<Class<?>> controllerClasses = new ArrayList<>();
+    private HashMap<String, Mapping> urlMappings = new HashMap<>();
 
     @Override
     public void init() throws ServletException {
@@ -30,6 +34,7 @@ public class FrontController extends HttpServlet {
 
         try {
             this.controllerClasses = getClassPackage(packageScan);
+            this.urlMappings = buildMappings(controllerClasses);
         } catch (Exception e) {
             throw new ServletException("Erreur lors du scan : " + e.getMessage(), e);
         }
@@ -40,37 +45,63 @@ public class FrontController extends HttpServlet {
         return new ArrayList<>(reflect.getTypesAnnotatedWith(Controller.class));
     }
 
+    private List<Method> getAnnotatedMethods(Class<?> clazz) {
+        List<Method> result = new ArrayList<>();
+        for (Method m : clazz.getDeclaredMethods()) {
+            if (m.isAnnotationPresent(Url.class)) {
+                result.add(m);
+            }
+        }
+        return result;
+    }
 
+    private HashMap<String, Mapping> buildMappings(List<Class<?>> controllers) {
+        HashMap<String, Mapping> map = new HashMap<>();
 
-    // sprint 0
+        for (Class<?> clazz : controllers) {
+            for (Method m : getAnnotatedMethods(clazz)) {
+                Url url = m.getAnnotation(Url.class);
+                String key = url.method().toUpperCase() + ":" + url.value();
+                map.put(key, new Mapping(clazz.getName(), m.getName()));
+            }
+        }
+        return map;
+    }
+
     @Override
     protected void service(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
-        String url = request.getRequestURI();
-        String contextPath = request.getContextPath();
-        String page = url.substring(contextPath.length());
+        String page = request.getRequestURI()
+                .substring(request.getContextPath().length());
 
-        // sprint 1 :affichage
         if (page.equals("/scan")) {
             response.setContentType("text/plain;charset=UTF-8");
             PrintWriter out = response.getWriter();
-            out.println("=== Resultat du scan ===");
-            out.println("Nombre : " + controllerClasses.size());
-            for (Class<?> clazz : controllerClasses) {
-                out.println(" - " + clazz.getName());
+
+            out.println("=== Controleurs ===");
+            for (Class<?> c : controllerClasses) {
+                out.println(" - " + c.getName());
+
+                for (Method m : getAnnotatedMethods(c)) {
+                    out.println("     -> " + m.getName());
+                }
+            }
+
+            out.println();
+            out.println("=== Mappings ===");
+            for (String key : urlMappings.keySet()) {
+                out.println(" " + key + " -> " + urlMappings.get(key));
             }
             return;
         }
-        
-		// sprint 0 
+
         if (page.isEmpty() || page.equals("/")) {
             page = "/index";
         }
 
-        String pagination = "/WEB-INF/views" + page + ".jsp";
-
-        RequestDispatcher dispatch = request.getRequestDispatcher(pagination);
+        RequestDispatcher dispatch =
+                request.getRequestDispatcher("/WEB-INF/views" + page + ".jsp");
         dispatch.forward(request, response);
     }
 }
