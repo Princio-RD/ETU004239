@@ -1,2 +1,4 @@
+com\passerelle\annotation\Url.class
 com\passerelle\controller\FrontController.class
 com\passerelle\annotation\Controller.class
+com\passerelle\mapping\Mapping.class
