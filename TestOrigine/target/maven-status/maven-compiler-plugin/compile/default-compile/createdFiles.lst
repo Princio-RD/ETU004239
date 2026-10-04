@@ -1,4 +1,6 @@
 mg\itu\p4239\controller\NotAController.class
+mg\itu\p4239\controller\User.class
+mg\itu\p4239\controller\ApiController.class
 mg\itu\p4239\controller\DbController.class
 mg\itu\p4239\controller\UserController.class
 mg\itu\p4239\controller\HelloController.class
