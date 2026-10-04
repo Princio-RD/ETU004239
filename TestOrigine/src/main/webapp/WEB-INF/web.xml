@@ -7,7 +7,11 @@
 
     <display-name>TestOrigine</display-name>
 
-    <!-- Servlet frontal du moteur Passerelle -->
+    <context-param>
+        <param-name>packageToScan</param-name>
+        <param-value>mg.itu.p4239.controller</param-value>
+    </context-param>
+
     <servlet>
         <servlet-name>FrontController</servlet-name>
         <servlet-class>com.passerelle.controller.FrontController</servlet-class>
@@ -16,7 +20,7 @@
 
     <servlet-mapping>
         <servlet-name>FrontController</servlet-name>
-        <url-pattern>/</url-pattern>
+        <url-pattern>/*</url-pattern>
     </servlet-mapping>
 
 </web-app>
