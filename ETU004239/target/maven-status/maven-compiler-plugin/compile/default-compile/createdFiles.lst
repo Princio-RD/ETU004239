@@ -1,3 +1,4 @@
+com\passerelle\binding\ArgumentBinder.class
 com\passerelle\mapping\ModelView.class
 com\passerelle\annotation\Controller.class
 com\passerelle\mapping\Mapping.class

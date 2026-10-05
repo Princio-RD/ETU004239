@@ -31,4 +31,10 @@ public class ApiController {
     public String echo(String msg) {
         return "Echo : " + msg;
     }
+	
+	@Url("/api/test")
+	public String test(){
+		return "test";
+	}
+	
 }
