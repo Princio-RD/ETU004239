@@ -1,6 +1,7 @@
 package com.passerelle.listener;
 
 import com.passerelle.annotation.Controller;
+import com.passerelle.annotation.RestApi;
 import com.passerelle.annotation.Url;
 import com.passerelle.database.Database;
 import com.passerelle.mapping.Mapping;
@@ -12,7 +13,9 @@ import jakarta.servlet.ServletContextListener;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class FrameListener implements ServletContextListener {
 
@@ -46,7 +49,6 @@ public class FrameListener implements ServletContextListener {
         Database.init(driver, url, user, password);
 
         System.out.println("=== [Passerelle] BDD initialisee ===");
-        System.out.println("Driver : " + driver);
         System.out.println("URL : " + url);
     }
 
@@ -70,7 +72,12 @@ public class FrameListener implements ServletContextListener {
 
     private ArrayList<Class<?>> getClassPackage(String packageName) {
         org.reflections.Reflections reflect = new org.reflections.Reflections(packageName);
-        return new ArrayList<>(reflect.getTypesAnnotatedWith(Controller.class));
+
+        Set<Class<?>> set = new HashSet<>();
+        set.addAll(reflect.getTypesAnnotatedWith(Controller.class));
+        set.addAll(reflect.getTypesAnnotatedWith(RestApi.class));
+
+        return new ArrayList<>(set);
     }
 
     private List<Method> getAnnotatedMethods(Class<?> clazz) {

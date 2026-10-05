@@ -16,27 +16,17 @@
   </properties>
 
   <dependencies>
-    <!-- Moteur du framework Passerelle -->
     <dependency>
       <groupId>com.passerelle</groupId>
       <artifactId>ETU004239</artifactId>
       <version>1.0-SNAPSHOT</version>
     </dependency>
 
-    <!-- API Servlet Jakarta (fournie par Tomcat) -->
     <dependency>
       <groupId>jakarta.servlet</groupId>
       <artifactId>jakarta.servlet-api</artifactId>
       <version>6.0.0</version>
       <scope>provided</scope>
-    </dependency>
-
-    <!-- JUnit 5 pour les tests -->
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-api</artifactId>
-      <version>5.10.2</version>
-      <scope>test</scope>
     </dependency>
   </dependencies>
 
