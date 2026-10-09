@@ -5,6 +5,7 @@ public class Employe {
     private String nom;
     private int age;
     private double salaire;
+    private Diplome diplome;
 
     public Employe() {}
 
@@ -16,4 +17,7 @@ public class Employe {
 
     public double getSalaire() { return salaire; }
     public void setSalaire(double salaire) { this.salaire = salaire; }
+
+    public Diplome getDiplome() { return diplome; }
+    public void setDiplome(Diplome diplome) { this.diplome = diplome; }
 }
