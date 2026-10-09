@@ -1,6 +1,7 @@
 package mg.itu.p4239.controller;
 
 import com.passerelle.annotation.Controller;
+import com.passerelle.annotation.Param;
 import com.passerelle.annotation.Url;
 import com.passerelle.mapping.ModelView;
 
@@ -15,7 +16,7 @@ public class HelloController {
     }
 
     @Url("/greet")
-    public ModelView greet(String name) {
+    public ModelView greet(@Param("name") String name) {
         ModelView mv = new ModelView("greet");
         mv.addItem("name", name);
         mv.addItem("message", "Salut " + name + " !");
@@ -23,7 +24,7 @@ public class HelloController {
     }
 
     @Url("/user")
-    public ModelView user(String name, int age) {
+    public ModelView user(@Param("name") String name, @Param("age") int age) {
         ModelView mv = new ModelView("user");
         mv.addItem("name", name);
         mv.addItem("age", age);

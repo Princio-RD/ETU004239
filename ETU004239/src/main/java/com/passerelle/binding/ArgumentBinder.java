@@ -1,5 +1,7 @@
 package com.passerelle.binding;
 
+import com.passerelle.annotation.Param;
+
 import jakarta.servlet.http.HttpServletRequest;
 
 import org.apache.commons.beanutils.BeanUtils;
@@ -24,13 +26,14 @@ public class ArgumentBinder {
     private static Object bindParameter(Parameter param, HttpServletRequest request)
             throws Exception {
 
-        String name = param.getName();
+        Param annotation = param.getAnnotation(Param.class);
+        String name = (annotation != null) ? annotation.value() : param.getName();
         Class<?> type = param.getType();
 
         if (isSimple(type)) {
             return bindSimple(name, type, request);
         }
-        return bindObject(type, request, null);
+        return bindObject(type, request, annotation != null ? name : null);
     }
 
     private static Object bindSimple(String name, Class<?> type,
