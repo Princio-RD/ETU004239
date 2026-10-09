@@ -2,6 +2,7 @@ com\passerelle\binding\ArgumentBinder.class
 com\passerelle\mapping\ModelView.class
 com\passerelle\annotation\Controller.class
 com\passerelle\mapping\Mapping.class
+com\passerelle\annotation\Param.class
 com\passerelle\annotation\RestApi.class
 com\passerelle\annotation\Url.class
 com\passerelle\database\Database.class

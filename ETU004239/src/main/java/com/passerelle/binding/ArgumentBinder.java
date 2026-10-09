@@ -1,5 +1,7 @@
 package com.passerelle.binding;
 
+import com.passerelle.annotation.Param;
+
 import jakarta.servlet.http.HttpServletRequest;
 
 import org.apache.commons.beanutils.BeanUtils;
@@ -16,16 +18,22 @@ public class ArgumentBinder {
         Object[] args = new Object[params.length];
 
         for (int i = 0; i < params.length; i++) {
-            String name = params[i].getName();
-            Class<?> type = params[i].getType();
-
-            if (isSimple(type)) {
-                args[i] = bindSimple(name, type, request);
-            } else {
-                args[i] = bindObject(type, request);
-            }
+            args[i] = bindParameter(params[i], request);
         }
         return args;
+    }
+
+    private static Object bindParameter(Parameter param, HttpServletRequest request)
+            throws Exception {
+
+        Param annotation = param.getAnnotation(Param.class);
+        String name = (annotation != null) ? annotation.value() : param.getName();
+        Class<?> type = param.getType();
+
+        if (isSimple(type)) {
+            return bindSimple(name, type, request);
+        }
+        return bindObject(type, request, annotation != null ? name : null);
     }
 
     private static Object bindSimple(String name, Class<?> type,
@@ -35,16 +43,23 @@ public class ArgumentBinder {
         return ConvertUtils.convert(value, type);
     }
 
-    private static Object bindObject(Class<?> type, HttpServletRequest request)
+    private static Object bindObject(Class<?> type, HttpServletRequest request, String prefix)
             throws Exception {
 
         Object obj = type.getDeclaredConstructor().newInstance();
 
         for (Field f : type.getDeclaredFields()) {
-            String value = request.getParameter(f.getName());
-            if (value != null) {
-                BeanUtils.setProperty(obj, f.getName(),
-                        ConvertUtils.convert(value, f.getType()));
+            String fieldPath = (prefix == null) ? f.getName() : prefix + "." + f.getName();
+
+            if (isSimple(f.getType())) {
+                String value = request.getParameter(fieldPath);
+                if (value != null && !value.isEmpty()) {
+                    BeanUtils.setProperty(obj, f.getName(),
+                            ConvertUtils.convert(value, f.getType()));
+                }
+            } else {
+                Object sub = bindObject(f.getType(), request, fieldPath);
+                BeanUtils.setProperty(obj, f.getName(), sub);
             }
         }
         return obj;

@@ -2,8 +2,8 @@ package com.passerelle.annotation;
 
 import java.lang.annotation.*;
 
-@Target({ElementType.TYPE, ElementType.METHOD})
+@Target(ElementType.PARAMETER)
 @Retention(RetentionPolicy.RUNTIME)
-@Controller
-public @interface RestApi {
+public @interface Param {
+    String value();
 }

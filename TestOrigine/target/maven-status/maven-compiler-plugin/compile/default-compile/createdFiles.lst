@@ -3,6 +3,7 @@ mg\itu\p4239\controller\ApiController.class
 mg\itu\p4239\controller\DbController.class
 mg\itu\p4239\controller\UserController.class
 mg\itu\p4239\controller\FormController.class
+mg\itu\p4239\model\Diplome.class
 mg\itu\p4239\controller\User.class
 mg\itu\p4239\controller\EmployeController.class
 mg\itu\p4239\model\Employe.class

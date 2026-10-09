@@ -1,6 +1,7 @@
 package mg.itu.p4239.controller;
 
 import com.passerelle.annotation.Controller;
+import com.passerelle.annotation.Param;
 import com.passerelle.annotation.Url;
 import com.passerelle.mapping.ModelView;
 
@@ -13,11 +14,15 @@ public class FormController {
     }
 
     @Url(value = "/form/save", method = "POST")
-    public ModelView save(String nom, int age, String email) {
+    public ModelView save(
+            @Param("nom")   String n,
+            @Param("age")   int a,
+            @Param("email") String e) {
+
         ModelView mv = new ModelView("form-result");
-        mv.addItem("nom", nom);
-        mv.addItem("age", age);
-        mv.addItem("email", email);
+        mv.addItem("nom", n);
+        mv.addItem("age", a);
+        mv.addItem("email", e);
         return mv;
     }
 }

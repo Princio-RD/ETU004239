@@ -42,6 +42,7 @@ echo   Tomcat en mode console - Les logs s'affichent ci-dessous
 echo   Ctrl+C pour arreter
 echo ============================================================
 echo.
+echo "https://localhost:8084/TestOrigine/employe/form"
 set "CATALINA_HOME=C:\Program Files\Apache Software Foundation\Tomcat 11.0"
 set "CATALINA_BASE=C:\Program Files\Apache Software Foundation\Tomcat 11.0"
 
