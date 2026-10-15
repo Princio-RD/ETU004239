@@ -52,3 +52,6 @@
 
 ## Sprint 9-b : Liaison directe d'un Formulaire vers un Objet (Object Form Binding)
 * **Principe :** Mapper automatiquement l'ensemble d'un formulaire vers un objet Java (Model / DTO). Au lieu de lister chaque paramètre un par un dans la signature de la méthode, la méthode reçoit directement un objet complexe (ex: `Employe emp`). Le framework instancie cet objet par réflexion et remplit automatiquement ses attributs à partir des champs du formulaire dont les noms correspondent aux propriétés de l'objet.
+
+## Sprint 10 : upload fichier
+* **Principe :** mila tonga ao @type d'action le file,asina parametre filemap <key,string(ou autre)>,tableau de bits[] ,creer classe de iny no ampiasaina(mapFile) type bits[]

@@ -19,7 +19,12 @@ http://localhost:8084/TestOrigine/dbtest
 
 # Sprint restAPi				
 http://localhost:8084/TestOrigine/api/hello				
+http://localhost:8084/TestOrigine/api/echo?msg=hello
 http://localhost:8084/TestOrigine/api/user
 
 # Sprint Binding											
 http://localhost:8084/TestOrigine/employe/form      	
+
+# Sprint Upload:
+http://localhost:8084/TestOrigine/upload/form
+http://localhost:8084/TestOrigine/cin/form 		-- test recto verso
