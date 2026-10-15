@@ -1,25 +1,27 @@
 package com.passerelle.mapping;
 
+import java.lang.reflect.Method;
+
 public class Mapping {
 
-    private String className;
-    private String methodName;
+    private Class<?> clazz;
+    private Method method;
 
-    public Mapping(String className, String methodName) {
-        this.className = className;
-        this.methodName = methodName;
+    public Mapping(Class<?> clazz, Method method) {
+        this.clazz = clazz;
+        this.method = method;
     }
 
-    public String getClassName() {
-        return className;
+    public Class<?> getClazz() {
+        return clazz;
     }
 
-    public String getMethodName() {
-        return methodName;
+    public Method getMethod() {
+        return method;
     }
 
     @Override
     public String toString() {
-        return className + "#" + methodName;
+        return clazz.getName() + "#" + method.getName();
     }
 }

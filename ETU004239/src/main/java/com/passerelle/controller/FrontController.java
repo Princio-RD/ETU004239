@@ -7,6 +7,7 @@ import com.passerelle.mapping.ModelView;
 
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.MultipartConfig;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -18,6 +19,11 @@ import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 
+@MultipartConfig(
+        fileSizeThreshold = 1024 * 1024,
+        maxFileSize = 1024 * 1024 * 10,
+        maxRequestSize = 1024 * 1024 * 50
+)
 public class FrontController extends HttpServlet {
 
     private HashMap<String, Mapping> urlMappings;
@@ -57,28 +63,18 @@ public class FrontController extends HttpServlet {
             throws ServletException, IOException {
 
         try {
-            Class<?> clazz = Class.forName(mapping.getClassName());
+            Class<?> clazz = mapping.getClazz();
+            Method method = mapping.getMethod();
+
             Object instance = clazz.getDeclaredConstructor().newInstance();
-
-            Method method = null;
-            for (Method m : clazz.getDeclaredMethods()) {
-                if (m.getName().equals(mapping.getMethodName())) {
-                    method = m;
-                    break;
-                }
-            }
-
-            if (method == null) {
-                throw new ServletException("Methode introuvable : " + mapping.getMethodName());
-            }
 
             Object[] args = ArgumentBinder.bind(method, request);
             Object result = method.invoke(instance, args);
 
             boolean isRestAPI = clazz.isAnnotationPresent(RestApi.class);
-            boolean isRestmethode = method.isAnnotationPresent(RestApi.class);
+            boolean isRestMethod = method.isAnnotationPresent(RestApi.class);
 
-            if (isRestAPI || isRestmethode) {
+            if (isRestAPI || isRestMethod) {
                 response.setContentType("application/json;charset=UTF-8");
                 response.getWriter().print(gson.toJson(result));
             } else if (result instanceof ModelView) {
@@ -101,7 +97,8 @@ public class FrontController extends HttpServlet {
             request.setAttribute(entry.getKey(), entry.getValue());
         }
 
-        RequestDispatcher dispatch = request.getRequestDispatcher(viewPrefix + mv.getView() + viewSuffix);
+        RequestDispatcher dispatch =
+                request.getRequestDispatcher(viewPrefix + mv.getView() + viewSuffix);
         dispatch.forward(request, response);
     }
 }

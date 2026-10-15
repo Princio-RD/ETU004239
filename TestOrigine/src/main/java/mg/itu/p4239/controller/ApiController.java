@@ -3,6 +3,7 @@ package mg.itu.p4239.controller;
 import com.passerelle.annotation.Param;
 import com.passerelle.annotation.RestApi;
 import com.passerelle.annotation.Url;
+import mg.itu.p4239.model.User; 
 
 import java.util.HashMap;
 import java.util.Map;
@@ -22,5 +23,10 @@ public class ApiController {
     @Url("/api/echo")
     public String echo(@Param("msg") String msg) {
         return "Echo : " + msg;
+    }
+	
+	@Url("/api/user")
+    public User user() {
+        return new User("Alice", 25, "alice@example.com");
     }
 }
