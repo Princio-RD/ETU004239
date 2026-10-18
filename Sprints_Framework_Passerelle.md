@@ -1,17 +1,17 @@
 # Feuille de Route des Sprints - Framework Passerelle
 
 ## Sprint 0 : Interception des requêtes (Front Controller)
-* **Principe :** Mettre en place le point d'entrée unique de l'application. On configure un Servlet central (`FrontControllerServlet`) mappé sur `/*` dans le `web.xml`. Son rôle est d'intercepter toutes les requêtes HTTP entrantes et d'extraire l'URL appelée (`getRequestURI()`).
+* **Principe :** Mettre en place le point d'entrée unique de l'application. On configure un Servlet central (`FrontController`) mappé sur `/` dans le `web.xml`. Son rôle est d'intercepter toutes les requêtes HTTP entrantes et d'extraire l'URL appelée (`getRequestURI()`).
 
 ---
 
 ## Sprint 1 : Scan et détection des contrôleurs
-* **Principe :** Identifier les classes qui jouent le rôle de contrôleur. On crée l'annotation de classe `@Controller`. Au démarrage de l'application (dans la méthode `init()`), le framework scanne le dossier du package spécifié (`packageToScan`), charge les classes via le `ClassLoader` et filtre celles qui possèdent l'annotation `@Controller`.
+* **Principe :** Identifier les classes qui jouent le rôle de contrôleur. On crée l'annotation de classe `@Controller`. Au démarrage de l'application, le framework scanne le dossier du package spécifié (`packageToScan`), charge les classes via le `ClassLoader` et filtre celles qui possèdent l'annotation `@Controller`.
 
 ---
 
 ## Sprint 2 : Cartographie des URL et méthodes (Mapping)
-* **Principe :** Associer chaque URL à une méthode précise d'un contrôleur. On crée une annotation de méthode (ex: `@GetMapping` ou `@Url`) et une classe de structure `Mapping` (contenant le nom de la classe et le nom de la méthode). Lors du scan au démarrage, le framework parcourt les méthodes des contrôleurs et remplit un dictionnaire central (`HashMap<String, Mapping>`) où la clé est l'URL et la valeur est le `Mapping` correspondant.
+* **Principe :** Associer chaque URL à une méthode précise d'un contrôleur. On crée une annotation de méthode (`@Url`) et une classe de structure `Mapping` (contenant la classe et la méthode). Lors du scan au démarrage, le framework parcourt les méthodes des contrôleurs et remplit un dictionnaire central (`HashMap<String, Mapping>`) où la clé est `"METHOD:URL"` et la valeur est le `Mapping` correspondant.
 
 ---
 
@@ -25,33 +25,41 @@
 
 ---
 
-## Sprint 5 : Restitution MVC, `ModelView` et Résolution de Vue (Préfixe & Suffixe)
-* **Principe :** Séparer la logique métier de l'affichage. La méthode retourne un objet `ModelView` contenant le nom logique de la vue (ex: `"liste-employes"`) et les données à transmettre. Le `FrontController` applique les règles de **préfixe** (ex: `/WEB-INF/views/`) et de **suffixe** (ex: `.jsp`) configurées dans l'application pour reconstituer le chemin d'accès réel (`/WEB-INF/views/liste-employes.jsp`), injecte les données dans la requête (`request.setAttribute()`) et effectue la redirection serveur (`RequestDispatcher.forward()`).
+## Sprint 5 : Restitution MVC, `ModelView` et Résolution de Vue
+* **Principe :** Séparer la logique métier de l'affichage. La méthode retourne un objet `ModelView` contenant le nom logique de la vue et les données à transmettre. Le `FrontController` applique les règles de **préfixe** (ex: `/WEB-INF/views/`) et de **suffixe** (ex: `.jsp`) configurées dans l'application pour reconstituer le chemin d'accès réel, injecte les données dans la requête (`request.setAttribute()`) et effectue la redirection serveur (`RequestDispatcher.forward()`).
 
 ---
 
 ## Sprint 6 : Refactorisation avec `FrameListener` (`ServletContextListener`)
-* **Principe :** Séparer les responsabilités au démarrage. On retire la logique lourde de scan et de cartographie du `init()` du `FrontControllerServlet` pour la placer dans un Listener d'application (`FrameListener` implémentant `ServletContextListener`). Au lancement du serveur, le `FrameListener` effectue le scan, construit le dictionnaire de `Mapping` et le stocke dans le `ServletContext`. Le `FrontControllerServlet` devient ainsi un simple contrôleur d'exécution au runtime.
+* **Principe :** Séparer les responsabilités au démarrage. On retire la logique lourde de scan et de cartographie du `init()` du `FrontController` pour la placer dans un Listener d'application (`FrameListener`). Au lancement du serveur, le `FrameListener` effectue le scan, construit le dictionnaire de `Mapping` et le stocke dans le `ServletContext`. Le `FrontController` devient ainsi un simple contrôleur d'exécution au runtime.
 
 ---
 
 ## Sprint 7 : Configuration et gestion de la connexion à la base de données
-* **Principe :** Centraliser et fournir une gestion de la base de données au sein du framework. Les identifiants et paramètres de connexion (`db.driver`, `db.url`, `db.user`, `db.password`) sont déclarés dans le `web.xml` via des `<context-param>`. Le framework les charge au démarrage (via le `FrameListener`) et fournit un utilitaire ou une classe de gestion permettant aux contrôleurs ou services de récupérer une connexion JDBC active pour exécuter leurs requêtes BDD.
+* **Principe :** Centraliser et fournir une gestion de la base de données au sein du framework. Les identifiants et paramètres de connexion (`db.driver`, `db.url`, `db.user`, `db.password`) sont déclarés dans le `web.xml` via des `<context-param>`. Le framework les charge au démarrage et fournit un utilitaire (`Database`) permettant aux contrôleurs de récupérer une connexion JDBC active.
 
 ---
 
-## Sprint 8 : Support des Réponses API REST (`@RestApi` / `@ResponseBody`)
-* **Principe :** Offrir la possibilité de retourner directement des données brutes (ex: JSON/XML) au lieu d'une vue HTML/JSP. On crée une annotation dédiée (ex: `@RestApi` ou `@ResponseBody`). Si la méthode invoquée (ou sa classe) possède cette annotation, le `FrontControllerServlet` shunte le mécanisme de résolution de vue (`ModelView`), sérialise la valeur de retour (en JSON via une bibliothèque ou un convertisseur personnalisé) et l'écrit directement dans le corps de la réponse HTTP (`response.getWriter().print(...)`) avec le `Content-Type` approprié (`application/json`).
+## Sprint 8 : Support des Réponses API REST (`@RestApi`)
+* **Principe :** Offrir la possibilité de retourner directement des données brutes (JSON) au lieu d'une vue HTML/JSP. Si la méthode (ou sa classe) possède l'annotation `@RestApi`, le `FrontController` shunte le mécanisme de résolution de vue (`ModelView`), sérialise la valeur de retour (en JSON via la bibliothèque Gson) et l'écrit directement dans le corps de la réponse HTTP avec le `Content-Type` approprié (`application/json`).
 
 ---
 
 ## Sprint 9-a : Traitement des formulaires paramètre par paramètre
-* **Principe :** Intercepter et associer dynamiquement les champs d'un formulaire HTTP (`POST` ou `GET`) aux paramètres individuels déclarés dans la méthode du contrôleur. Le framework analyse les noms des champs du formulaire et associe chaque valeur au paramètre correspondant de la méthode Java en effectuant les conversions de type requises.
+* **Principe :** Intercepter et associer dynamiquement les champs d'un formulaire HTTP aux paramètres individuels déclarés dans la méthode du contrôleur (ex: `save(String nom, int age)`). L'annotation `@Param("nomDuChamp")` est utilisée pour faire le lien entre le nom du champ HTML et le paramètre Java.
 
 ---
 
 ## Sprint 9-b : Liaison directe d'un Formulaire vers un Objet (Object Form Binding)
-* **Principe :** Mapper automatiquement l'ensemble d'un formulaire vers un objet Java (Model / DTO). Au lieu de lister chaque paramètre un par un dans la signature de la méthode, la méthode reçoit directement un objet complexe (ex: `Employe emp`). Le framework instancie cet objet par réflexion et remplit automatiquement ses attributs à partir des champs du formulaire dont les noms correspondent aux propriétés de l'objet.
+* **Principe :** Mapper automatiquement l'ensemble d'un formulaire vers un objet Java (DTO). La méthode reçoit directement un objet complexe (ex: `Employe emp`). Le framework instancie cet objet par réflexion et remplit automatiquement ses attributs (y compris les objets imbriqués comme `Diplome`) à partir des champs du formulaire dont les noms correspondent aux propriétés de l'objet (ex: `emp.diplome.libelle`).
 
-## Sprint 10 : upload fichier
-* **Principe :** mila tonga ao @type d'action le file,asina parametre filemap <key,string(ou autre)>,tableau de bits[] ,creer classe de iny no ampiasaina(mapFile) type bits[]
+---
+
+## Sprint 10 : Upload de fichiers
+* **Principe :** Gérer l'upload de fichiers (images, CSV, PDF, etc.) de manière généralisée. 
+* **Fonctionnement :** 
+  * Les fichiers sont reçus via `multipart/form-data`.
+  * Une classe `MapFile` encapsule le fichier (nom, type MIME, taille, tableau de bits `byte[]`).
+  * Une classe `MultiFile` permet de gérer un groupe de fichiers logiquement liés (ex: un Recto et un Verso) via une clé/identifiant.
+  * Le framework utilise `@Param("prefixe")` avec `MultiFile` ou `Map<String, MapFile>` pour injecter les fichiers dans la méthode du contrôleur.
+  * Une configuration centralisée dans `utils/upload.properties` gère la création automatique des dossiers (images, csv, pdf, etc.) à la racine du projet web déployé.
