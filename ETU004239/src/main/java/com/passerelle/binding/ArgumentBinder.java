@@ -30,6 +30,10 @@ public class ArgumentBinder {
             return MultiFileBinder.bind(name, request);
         }
 
+        if (BinderUtils.isSession(type)) {
+            return SessionBinder.bind(request);
+        }
+
         if (type == MapFile.class) {
             return FileBinder.bind(name, request);
         }
