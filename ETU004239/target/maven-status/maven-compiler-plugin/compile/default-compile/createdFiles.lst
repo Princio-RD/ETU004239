@@ -1,6 +1,7 @@
 com\passerelle\annotation\Controller.class
 com\passerelle\mapping\Mapping.class
 com\passerelle\scan\ControllerScanner.class
+com\passerelle\annotation\Public.class
 com\passerelle\annotation\Url.class
 com\passerelle\controller\FrontController.class
 com\passerelle\binding\MultiFileBinder.class
@@ -12,12 +13,14 @@ com\passerelle\binding\SimpleBinder.class
 com\passerelle\mapping\MapFile.class
 com\passerelle\binding\FileBinder.class
 com\passerelle\listener\FrameListener.class
+com\passerelle\session\Session.class
 com\passerelle\config\DbConfig.class
 com\passerelle\binding\ObjectBinder.class
 com\passerelle\annotation\RestApi.class
 com\passerelle\binding\BinderUtils.class
 com\passerelle\scan\MappingBuilder.class
 com\passerelle\utils\UploadConfig.class
+com\passerelle\binding\SessionBinder.class
 com\passerelle\annotation\Param.class
 com\passerelle\database\Database.class
 com\passerelle\binding\MapFileBinder.class

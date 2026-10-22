@@ -3,6 +3,7 @@ package com.passerelle.binding;
 import com.passerelle.annotation.Param;
 import com.passerelle.mapping.MapFile;
 import com.passerelle.mapping.MultiFile;
+import com.passerelle.session.Session;
 
 import jakarta.servlet.http.Part;
 
@@ -12,6 +13,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Date;
 import java.util.Map;
+
 
 public class BinderUtils {
 
@@ -52,5 +54,9 @@ public class BinderUtils {
         byte[] bytes = part.getInputStream().readAllBytes();
         return new MapFile(part.getSubmittedFileName(),
                 part.getContentType(), part.getSize(), bytes);
+    }
+
+    public static boolean isSession(Class<?> type) {
+        return type == Session.class;
     }
 }

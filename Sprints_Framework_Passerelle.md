@@ -63,3 +63,14 @@
   * Une classe `MultiFile` permet de gérer un groupe de fichiers logiquement liés (ex: un Recto et un Verso) via une clé/identifiant.
   * Le framework utilise `@Param("prefixe")` avec `MultiFile` ou `Map<String, MapFile>` pour injecter les fichiers dans la méthode du contrôleur.
   * Une configuration centralisée dans `utils/upload.properties` gère la création automatique des dossiers (images, csv, pdf, etc.) à la racine du projet web déployé.
+
+
+  ## sprint 11 : session 
+* **Principe :** acces au session dans les controllers (un seule instance) : mettre le dans le context 
+- un seul instance pour chaque Controller
+- Mettre en parametre de methode d'action
+- creer un classe session a injecter (Mapper la session) <string ; Object> ; methode :recuper variable, ajouter, supprimer
+- mettre dans un methode d'action la classe 
+- completer le map par Httpsession
+- apres il faut mettre a jour le Httpsession apres invoker la methode
+Ensuite on entre dans l'authentification
