@@ -26,7 +26,7 @@ public class AuthController {
 
         // Verification basique (a remplacer par BDD)
         if ("admin".equals(username) && "admin".equals(password)) {
-            session.add("user", username);    // <-- L'UTILISATEUR EST CONNECTE
+            session.add("user", username);
             session.add("role", "ADMIN");
             return new ModelView("dashboard");
         }
@@ -42,6 +42,8 @@ public class AuthController {
         ModelView mv = new ModelView("profile");
         mv.addItem("user", session.get("user"));
         mv.addItem("role", session.get("role"));
+
+        mv.addItem("sessionId",session.get("sessionId"));
         return mv;
     }
 
