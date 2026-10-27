@@ -2,6 +2,7 @@ D:\Github\ETU004239\ETU004239\src\main\java\com\passerelle\annotation\Controller
 D:\Github\ETU004239\ETU004239\src\main\java\com\passerelle\annotation\Param.java
 D:\Github\ETU004239\ETU004239\src\main\java\com\passerelle\annotation\Public.java
 D:\Github\ETU004239\ETU004239\src\main\java\com\passerelle\annotation\RestApi.java
+D:\Github\ETU004239\ETU004239\src\main\java\com\passerelle\annotation\Role.java
 D:\Github\ETU004239\ETU004239\src\main\java\com\passerelle\annotation\Url.java
 D:\Github\ETU004239\ETU004239\src\main\java\com\passerelle\binding\ArgumentBinder.java
 D:\Github\ETU004239\ETU004239\src\main\java\com\passerelle\binding\BinderUtils.java
