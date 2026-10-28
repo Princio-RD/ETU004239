@@ -1,8 +1,14 @@
 package com.passerelle.controller;
 
+import java.io.IOException;
+import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
+
+import com.google.gson.Gson;
 import com.passerelle.annotation.Public;
-import com.passerelle.annotation.Role;
 import com.passerelle.annotation.RestApi;
+import com.passerelle.annotation.Role;
 import com.passerelle.binding.ArgumentBinder;
 import com.passerelle.binding.SessionBinder;
 import com.passerelle.mapping.Mapping;
@@ -15,13 +21,6 @@ import jakarta.servlet.annotation.MultipartConfig;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-
-import com.google.gson.Gson;
-
-import java.io.IOException;
-import java.lang.reflect.Method;
-import java.util.HashMap;
-import java.util.Map;
 
 @MultipartConfig(
         fileSizeThreshold = 1024 * 1024,
@@ -45,8 +44,12 @@ public class FrontController extends HttpServlet {
         viewPrefix = getServletContext().getInitParameter("view.prefix");
         viewSuffix = getServletContext().getInitParameter("view.suffix");
 
-        if (urlMappings == null) throw new ServletException("urlMappings non initialise");
-        if (controllerInstances == null) throw new ServletException("controllerInstances non initialise");
+        if (urlMappings == null) {
+            throw new ServletException("urlMappings non initialise - FrameListener manquant ?");
+        }
+        if (controllerInstances == null) {
+            throw new ServletException("controllerInstances non initialise - ControllerScanner manquant ?");
+        }
     }
 
     @Override
@@ -71,17 +74,22 @@ public class FrontController extends HttpServlet {
             Class<?> clazz = mapping.getClazz();
             Method method = mapping.getMethod();
 
+            // 1. Recuperer l'instance unique
             Object instance = controllerInstances.get(clazz);
-            if (instance == null) throw new ServletException("Instance non trouvee");
+            if (instance == null) {
+                throw new ServletException("Aucune instance trouvee pour : " + clazz);
+            }
 
-            // 1. Binder les arguments
+            // 2. Binder les arguments (inclut la Session)
             Object[] args = ArgumentBinder.bind(method, request);
 
+            // ============================================================
+            // 3. SECURITE AUTOMATIQUE
+            // ============================================================
             boolean isPublic = method.isAnnotationPresent(Public.class) 
                             || clazz.isAnnotationPresent(Public.class);
 
             if (!isPublic) {
-
                 Session session = null;
                 for (Object arg : args) {
                     if (arg instanceof Session) {
@@ -90,13 +98,13 @@ public class FrontController extends HttpServlet {
                     }
                 }
 
-                // A. Verifier si connecte
-                if (session == null || session.get("user") == null) {
+                // 3.1 L'utilisateur est-il connecte ?
+                if (session == null || session.get("role") == null) {
                     response.sendRedirect(request.getContextPath() + "/login/form");
                     return;
                 }
 
-                // B. Verifier le role si l'annotation @Role est presente
+                // 3.2 Verification du role (si @Role est present)
                 Role roleAnnotation = method.getAnnotation(Role.class);
                 if (roleAnnotation == null) {
                     roleAnnotation = clazz.getAnnotation(Role.class);
@@ -104,20 +112,28 @@ public class FrontController extends HttpServlet {
 
                 if (roleAnnotation != null) {
                     String requiredRole = roleAnnotation.value();
+                    
+                    // Si l'annotation est vide (ex: @Role), on prend la config du moteur
+                    if (requiredRole.isEmpty()) {
+                        requiredRole = getServletContext().getInitParameter("security.default.role");
+                    }
+
                     String userRole = (String) session.get("role");
 
-                    if (!requiredRole.equals(userRole)) {
+                    if (requiredRole != null && !requiredRole.equals(userRole)) {
                         response.setContentType("text/html;charset=UTF-8");
-                        response.getWriter().println("<h1>Acces refuse : role " + requiredRole + " requis.</h1>");
+                        response.getWriter().println("<h1>Acces refuse</h1>");
+                        response.getWriter().println("<p>Role requis : " + requiredRole + "</p>");
                         return;
                     }
                 }
             }
+            // ============================================================
 
-            // 3. Invoquer la methode
+            // 4. Invoquer la methode (si on a passe la securite)
             Object result = method.invoke(instance, args);
 
-            // 4. Synchroniser la session
+            // 5. Synchroniser la session (sauvegarde dans HttpSession)
             for (Object arg : args) {
                 if (arg instanceof Session) {
                     SessionBinder.update((Session) arg, request);
@@ -125,7 +141,7 @@ public class FrontController extends HttpServlet {
                 }
             }
 
-            // 5. Traitement du resultat
+            // 6. Traitement du resultat
             boolean isRestAPI = clazz.isAnnotationPresent(RestApi.class);
             boolean isRestMethod = method.isAnnotationPresent(RestApi.class);
 
