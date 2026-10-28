@@ -8,6 +8,7 @@ import java.util.Map;
 import com.google.gson.Gson;
 import com.passerelle.annotation.Public;
 import com.passerelle.annotation.RestApi;
+import com.passerelle.annotation.Role;
 import com.passerelle.binding.ArgumentBinder;
 import com.passerelle.binding.SessionBinder;
 import com.passerelle.mapping.Mapping;
@@ -29,7 +30,7 @@ import jakarta.servlet.http.HttpServletResponse;
 public class FrontController extends HttpServlet {
 
     private HashMap<String, Mapping> urlMappings;
-    private Map<Class<?>, Object> controllerInstances; // ← NOUVEAU
+    private Map<Class<?>, Object> controllerInstances;
     private String viewPrefix;
     private String viewSuffix;
     private Gson gson = new Gson();
@@ -39,7 +40,7 @@ public class FrontController extends HttpServlet {
         super.init();
 
         urlMappings = (HashMap<String, Mapping>) getServletContext().getAttribute("urlMappings");
-        controllerInstances = (Map<Class<?>, Object>) getServletContext().getAttribute("controllerInstances"); // ← NOUVEAU
+        controllerInstances = (Map<Class<?>, Object>) getServletContext().getAttribute("controllerInstances");
         viewPrefix = getServletContext().getInitParameter("view.prefix");
         viewSuffix = getServletContext().getInitParameter("view.suffix");
 
@@ -73,17 +74,22 @@ public class FrontController extends HttpServlet {
             Class<?> clazz = mapping.getClazz();
             Method method = mapping.getMethod();
 
+            // 1. Recuperer l'instance unique
             Object instance = controllerInstances.get(clazz);
-            if (instance == null) throw new ServletException("Instance non trouvee");
+            if (instance == null) {
+                throw new ServletException("Aucune instance trouvee pour : " + clazz);
+            }
 
-            // 1. Binder les arguments (cree la Session)
+            // 2. Binder les arguments (inclut la Session)
             Object[] args = ArgumentBinder.bind(method, request);
 
-            // verification de l'authentification 
-            boolean isPublic = method.isAnnotationPresent(Public.class) || clazz.isAnnotationPresent(Public.class);
+            // ============================================================
+            // 3. SECURITE AUTOMATIQUE
+            // ============================================================
+            boolean isPublic = method.isAnnotationPresent(Public.class) 
+                            || clazz.isAnnotationPresent(Public.class);
 
             if (!isPublic) {
-                // On cherche si une Session a ete injectee
                 Session session = null;
                 for (Object arg : args) {
                     if (arg instanceof Session) {
@@ -92,17 +98,42 @@ public class FrontController extends HttpServlet {
                     }
                 }
 
-                // Si la session est vide -> Redirection
-                if (session == null || session.get("user") == null) {
+                // 3.1 L'utilisateur est-il connecte ?
+                if (session == null || session.get("role") == null) {
                     response.sendRedirect(request.getContextPath() + "/login/form");
                     return;
                 }
-            }
 
-            // 2. Invoquer la methode (si on a passe la securite)
+                // 3.2 Verification du role (si @Role est present)
+                Role roleAnnotation = method.getAnnotation(Role.class);
+                if (roleAnnotation == null) {
+                    roleAnnotation = clazz.getAnnotation(Role.class);
+                }
+
+                if (roleAnnotation != null) {
+                    String requiredRole = roleAnnotation.value();
+                    
+                    // Si l'annotation est vide (ex: @Role), on prend la config du moteur
+                    if (requiredRole.isEmpty()) {
+                        requiredRole = getServletContext().getInitParameter("security.default.role");
+                    }
+
+                    String userRole = (String) session.get("role");
+
+                    if (requiredRole != null && !requiredRole.equals(userRole)) {
+                        response.setContentType("text/html;charset=UTF-8");
+                        response.getWriter().println("<h1>Acces refuse</h1>");
+                        response.getWriter().println("<p>Role requis : " + requiredRole + "</p>");
+                        return;
+                    }
+                }
+            }
+            // ============================================================
+
+            // 4. Invoquer la methode (si on a passe la securite)
             Object result = method.invoke(instance, args);
 
-            // 3. Synchroniser la Session vers HttpSession
+            // 5. Synchroniser la session (sauvegarde dans HttpSession)
             for (Object arg : args) {
                 if (arg instanceof Session) {
                     SessionBinder.update((Session) arg, request);
@@ -110,7 +141,7 @@ public class FrontController extends HttpServlet {
                 }
             }
 
-            // 4. Traiter le resultat (JSON ou ModelView)
+            // 6. Traitement du resultat
             boolean isRestAPI = clazz.isAnnotationPresent(RestApi.class);
             boolean isRestMethod = method.isAnnotationPresent(RestApi.class);
 

@@ -1,5 +1,6 @@
 mg\itu\p4239\controller\NotAController.class
 mg\itu\p4239\controller\ApiController.class
+mg\itu\p4239\controller\CounterController.class
 mg\itu\p4239\model\User.class
 mg\itu\p4239\controller\CinController.class
 mg\itu\p4239\controller\AuthController.class

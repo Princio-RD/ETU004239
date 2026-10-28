@@ -23,4 +23,5 @@ com\passerelle\utils\UploadConfig.class
 com\passerelle\binding\SessionBinder.class
 com\passerelle\annotation\Param.class
 com\passerelle\database\Database.class
+com\passerelle\annotation\Role.class
 com\passerelle\binding\MapFileBinder.class

@@ -1,12 +1,12 @@
 package com.passerelle.binding;
 
+import java.util.Enumeration;
+import java.util.Map;
+
 import com.passerelle.session.Session;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
-
-import java.util.Enumeration;
-import java.util.Map;
 
 public class SessionBinder {
 
@@ -17,6 +17,7 @@ public class SessionBinder {
         Session session = new Session();
         HttpSession hs = request.getSession(true);
 
+        session.getData().put("sessionId",hs.getId());
         Enumeration<String> names = hs.getAttributeNames();
         while (names.hasMoreElements()) {
             String name = names.nextElement();
@@ -35,7 +36,9 @@ public class SessionBinder {
 
         // 1. Ajouter / mettre a jour
         for (Map.Entry<String, Object> e : session.getData().entrySet()) {
-            hs.setAttribute(e.getKey(), e.getValue());
+            if (!"sessionId".equals(e.getKey())) {  
+                hs.setAttribute(e.getKey(), e.getValue());
+            }
         }
 
         // 2. Supprimer les cles retirees
