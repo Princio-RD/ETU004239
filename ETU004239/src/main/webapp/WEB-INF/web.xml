@@ -17,7 +17,5 @@
         <param-name>security.default.role</param-name>
         <param-value>USER</param-value>
     </context-param>
-
-    <!-- ... (le reste de ton web-fragment : BDD, listener, servlet) ... -->
     
 </web-fragment>
