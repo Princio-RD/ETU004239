@@ -168,8 +168,7 @@ public class FrontController extends HttpServlet {
             request.setAttribute(entry.getKey(), entry.getValue());
         }
 
-        RequestDispatcher dispatch =
-                request.getRequestDispatcher(viewPrefix + mv.getView() + viewSuffix);
+        RequestDispatcher dispatch = request.getRequestDispatcher(viewPrefix + mv.getView() + viewSuffix);
         dispatch.forward(request, response);
     }
 }
